@@ -1,0 +1,55 @@
+{
+    "name": "sqlite-auto-migrator",
+    "version": "1.0.0",
+    "description": "Simple automated SQLite database migration tool which works well with CI/CD pipelines and VCS.",
+    "main": "index.js",
+    "scripts": {
+        "lint": "npx eslint-config-prettier ./index.js && eslint . && npx prettier . --check",
+        "format": "(eslint . --fix || true) && npx prettier . --write",
+        "test": "npm run lint && node --test --experimental-test-coverage --test-reporter=spec --test-reporter=tap --test-reporter-destination=stdout --test-reporter-destination=tap.info",
+        "prepare": "husky install"
+    },
+    "lint-staged": {
+        "*.js": [
+            "eslint --fix",
+            "prettier --write --ignore-unknown"
+        ],
+        "!(*.js)": "prettier --write --ignore-unknown"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/SanderGi/sqlite-auto-migrator.git"
+    },
+    "keywords": [
+        "sqlite",
+        "migrations"
+    ],
+    "author": "Alexander Metzger <alexander.le@outlook.dk> (https://sandergi.github.io/)",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/SanderGi/sqlite-auto-migrator/issues"
+    },
+    "homepage": "https://github.com/SanderGi/sqlite-auto-migrator#readme",
+    "engines": {
+        "node": ">= 18.17.0"
+    },
+    "files": [
+        "LICENSE",
+        "README.md",
+        "index.js",
+        "lib/"
+    ],
+    "bin": {
+        "sam": "./lib/cli.js"
+    },
+    "dependencies": {
+        "sqlite3": "^5.1.6"
+    },
+    "devDependencies": {
+        "eslint": "^8.56.0",
+        "eslint-config-prettier": "^9.1.0",
+        "husky": "^8.0.3",
+        "lint-staged": "^15.2.0",
+        "prettier": "3.1.1"
+    }
+}
