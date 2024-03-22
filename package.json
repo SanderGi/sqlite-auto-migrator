@@ -6,15 +6,15 @@
     "scripts": {
         "lint": "npx eslint-config-prettier ./index.js && eslint . && npx prettier . --check",
         "format": "(eslint . --fix || true) && npx prettier . --write",
-        "test": "npm run lint && node --test --experimental-test-coverage --test-reporter=spec --test-reporter=tap --test-reporter-destination=stdout --test-reporter-destination=tap.info",
+        "test": "npm run lint && node --test --experimental-test-coverage --test-reporter=spec --test-reporter=tap --test-reporter-destination=stdout --test-reporter-destination=tap.info ./test/test_*.mjs",
         "prepare": "husky install"
     },
     "lint-staged": {
-        "*.js": [
+        "*.js,*.mjs": [
             "eslint --fix",
             "prettier --write --ignore-unknown"
         ],
-        "!(*.js)": "prettier --write --ignore-unknown"
+        "!(*.js,*.mjs)": "prettier --write --ignore-unknown"
     },
     "repository": {
         "type": "git",
@@ -50,6 +50,7 @@
         "eslint-config-prettier": "^9.1.0",
         "husky": "^8.0.3",
         "lint-staged": "^15.2.0",
-        "prettier": "3.1.1"
+        "prettier": "3.1.1",
+        "sqlite-auto-migrator": "file:."
     }
 }

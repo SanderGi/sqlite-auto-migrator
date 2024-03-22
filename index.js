@@ -1,11 +1,11 @@
 /*!
  * sqlite-auto-migrator
- * Copyright(c) 2023 Alexander Metzger
+ * Copyright(c) 2024 Alexander Metzger
  * MIT Licensed
  */
 
 'use strict';
 
-module.exports.Migrator = require('./lib/migrator');
-module.exports.errors = require('./lib/errors.mjs');
-module.exports.Database = require('./lib/database.mjs');
+module.exports.Migrator = import('./lib/migrator.mjs');
+module.exports.Errors = import('./lib/errors.mjs');
+module.exports.Database = import('./lib/database.mjs');
