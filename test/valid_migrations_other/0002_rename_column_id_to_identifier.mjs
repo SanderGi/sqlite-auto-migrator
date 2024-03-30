@@ -4,7 +4,7 @@ import { Database } from 'sqlite-auto-migrator';
 
 // Pragmas can't be changed in transactions, so they are tracked separately.
 // Note that most pragmas are not persisted in the database file and will have to be set on each new connection.
-export const PRAGMAS = { foreign_keys: 1, journal_mode: 'wal' };
+export const PRAGMAS = { foreign_keys: 0, journal_mode: 'delete' };
 
 /**
  * Runs the necessary SQL commands to migrate the database up to this version from the previous version.
@@ -12,10 +12,7 @@ export const PRAGMAS = { foreign_keys: 1, journal_mode: 'wal' };
  * @param {Database} db database instance to run SQL commands on
  */
 export async function up(db) {
-    await db.run(`
-        CREATE VIEW IF NOT EXISTS users_view AS
-            SELECT id, name FROM users;
-    `);
+    await db.run('ALTER TABLE renamed RENAME COLUMN id TO identifier');
 }
 
 /**
@@ -24,5 +21,5 @@ export async function up(db) {
  * @param {Database} db database instance to run SQL commands on
  */
 export async function down(db) {
-    await db.run('DROP VIEW IF EXISTS users_view');
+    await db.run('ALTER TABLE renamed RENAME COLUMN identifier TO id');
 }

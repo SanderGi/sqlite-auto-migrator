@@ -1,15 +1,13 @@
 # sqlite-auto-migrator
 
-<!-- [![NPM Version][npm-version-image]][npm-url]
-[![NPM Install Size][npm-install-size-image]][npm-install-size-url]
-[![NPM Downloads][npm-downloads-image]][npm-downloads-url]
-[![Linux Build][github-actions-ci-image]][github-actions-ci-url]
-[![Windows Build][appveyor-image]][appveyor-url]
-[![Test Coverage][coveralls-image]][coveralls-url] -->
+[![LOC](./.badges/lines-of-code.svg)](./.badges/lines-of-code.svg)
+[![FileCount](./.badges/file-count.svg)](./.badges/file-count.svg)
+[![Tests](./.badges/tests.svg)](./.badges/tests.svg)
+[![Coverage](./.badges/coverage.svg)](./.badges/coverage.svg)
 
 Simple automated SQLite database migration tool which works well with CI/CD pipelines and VCS.
 
-Standard migration files auto-generated and applied (optionally after manual inspection) directly via JavaScript or TypeScript:
+Flexible migration files can be auto-generated and applied (optionally after manual inspection) directly via JavaScript or TypeScript:
 
 ```js
 const { Migrator } = require('sqlite-auto-migrator');
@@ -29,7 +27,7 @@ $ sam migrate
 ## Installation
 
 This is a [Node.js](https://nodejs.org/en/) module available through the
-[npm registry](https://www.npmjs.com/). [Node.js](https://nodejs.org/en/download/) v18.17.0 or higher is recommended.
+[npm registry](https://www.npmjs.com/). [Node.js v18.17.0](https://nodejs.org/en/download/) or higher is recommended.
 
 Installation is done using the
 [`npm install` command](https://docs.npmjs.com/getting-started/installing-npm-packages-locally):
@@ -41,6 +39,8 @@ $ npm install sqlite-auto-migrator
 ## Basic Usage
 
 ## API Documentation
+
+### JavaScript Migration Management
 
 ```js
 const { Migrator } = require('sqlite-auto-migrator');
@@ -85,9 +85,38 @@ await migrator.migrate(
 );
 ```
 
+### Command Line Interface
+
+```console
+$ sam status [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name>] [--schemaPath <path>]
+```
+
+```console
+$ sam make [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name>] [--schemaPath <path>] [--onRename <action>] [--onDestructiveChange <action>]
+```
+
+```console
+$ sam migrate [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name>] [--schemaPath <path>] [<target migration>]
+```
+
+### Understanding Migration Files
+
+TODO
+
+### The Asynchronous Database Wrapper
+
+TODO
+
+### TypeScript and JSDoc Support
+
 ## Examples
 
-The following application uses the sqlite-auto-migrator: [Attendance Scanner](https://github.com/clr-li/AttendanceScanner)
+The following application uses the sqlite-auto-migrator: [Attendance Scanner](https://github.com/clr-li/AttendanceScanner).
+You can also take a look at the [test suite](test) for more examples.
+
+## Alternatives
+
+TODO
 
 ## Contributing
 
@@ -99,7 +128,7 @@ If you discover a security vulnerability in sqlite-auto-migrator, please contact
 
 ### Running Tests
 
-To run the test suite, first install the dependencies, then run `npm test`:
+Tests run automatically pre-commit using [Husky](https://typicode.github.io/husky/). To run the test suite manually, first install the dependencies, then run `npm test`:
 
 ```console
 $ npm install
@@ -108,12 +137,28 @@ $ npm test
 
 ### Linting and Formatting
 
-[Eslint](https://eslint.org/) is used for static analysis and [Prettier](https://prettier.io/) is used for automatic formatting. Formatting and linting will automatically run pre-commit using [Husky](https://typicode.github.io/husky/) and [Lint-Staged](https://www.npmjs.com/package/lint-staged) and can be set up to happen [automatically in your editor](https://prettier.io/docs/en/editors.html) (e.g. on save). It can also be run manually:
+[Eslint](https://eslint.org/) is used for static analysis, [fixpack](https://www.npmjs.com/package/fixpack) is used to standardize package.json and [Prettier](https://prettier.io/) is used for automatic formatting. Linting will automatically run pre-commit using [Husky](https://typicode.github.io/husky/) and [Lint-Staged](https://www.npmjs.com/package/lint-staged). Formatting can be set up to happen [automatically in your editor](https://prettier.io/docs/en/editors.html) (e.g. on save). Formatting and linting can also be run manually:
 
 ```console
 $ npm install
 $ npm run format
 $ npm run lint
+```
+
+### Generating TypeScript Types
+
+Typescript types are automatically generated from the JSDoc in the `/types` folder when the npm package is packaged/published. To update the TypeScript types manually, run the following command
+
+```console
+$ npm run types
+```
+
+This will allow TypeScript users to benefit from the type information provided in the JSDoc.
+
+If you also want to generate the readme badges, run the following command:
+
+```console
+$ npm run build
 ```
 
 ## Contributors
@@ -122,19 +167,8 @@ The author of sqlite-auto-migrator is [Alexander Metzger](https://sandergi.githu
 
 Functionality is inspired by [David Rothlis's migration script](https://david.rothlis.net/declarative-schema-migration-for-sqlite/) and made in consultance with the SQLite documentation, particularly the [alter table instructions](https://www.sqlite.org/lang_altertable.html), [schema table](https://www.sqlite.org/schematab.html), and [language documentation](https://www.sqlite.org/lang.html).
 
+All contributors will be listed here.
+
 ## License
 
 [MIT](LICENSE)
-
-[appveyor-image]: https://badgen.net/appveyor/ci/dougwilson/express/master?label=windows
-[appveyor-url]: https://ci.appveyor.com/project/dougwilson/express
-[coveralls-image]: https://badgen.net/coveralls/c/github/expressjs/express/master
-[coveralls-url]: https://coveralls.io/r/expressjs/express?branch=master
-[github-actions-ci-image]: https://badgen.net/github/checks/expressjs/express/master?label=linux
-[github-actions-ci-url]: https://github.com/expressjs/express/actions/workflows/ci.yml
-[npm-downloads-image]: https://badgen.net/npm/dm/express
-[npm-downloads-url]: https://npmcharts.com/compare/express?minimal=true
-[npm-install-size-image]: https://badgen.net/packagephobia/install/express
-[npm-install-size-url]: https://packagephobia.com/result?p=express
-[npm-url]: https://npmjs.org/package/express
-[npm-version-image]: https://badgen.net/npm/v/express

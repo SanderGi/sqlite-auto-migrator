@@ -1,10 +1,8 @@
-'use strict';
-
 import { describe, it, before, beforeEach, after } from 'node:test'; // read about the builtin Node.js test framework here: https://nodejs.org/docs/latest-v18.x/api/test.html
 import assert from 'node:assert';
 
 import sqlite3 from 'sqlite3';
-import Database from '../lib/database.mjs';
+import { Database } from '../lib/database.mjs';
 
 describe('Database', () => {
     describe('connect', () => {
@@ -114,7 +112,7 @@ describe('Database', () => {
 
         beforeEach(async () => {
             await db.run('DROP TABLE IF EXISTS test');
-            await db.run('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
+            await db.run('CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT)');
         });
 
         it('should be able to get a single row', async () => {

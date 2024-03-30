@@ -1,56 +1,70 @@
 {
     "name": "sqlite-auto-migrator",
-    "version": "1.0.0",
     "description": "Simple automated SQLite database migration tool which works well with CI/CD pipelines and VCS.",
-    "main": "index.js",
-    "scripts": {
-        "lint": "npx eslint-config-prettier ./index.js && eslint . && npx prettier . --check",
-        "format": "(eslint . --fix || true) && npx prettier . --write",
-        "test": "npm run lint && node --test --experimental-test-coverage --test-reporter=spec --test-reporter=tap --test-reporter-destination=stdout --test-reporter-destination=tap.info ./test/test_*.mjs",
-        "prepare": "husky install"
-    },
-    "lint-staged": {
-        "*.js,*.mjs": [
-            "eslint --fix",
-            "prettier --write --ignore-unknown"
-        ],
-        "!(*.js,*.mjs)": "prettier --write --ignore-unknown"
-    },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/SanderGi/sqlite-auto-migrator.git"
-    },
-    "keywords": [
-        "sqlite",
-        "migrations"
-    ],
+    "version": "1.0.0",
     "author": "Alexander Metzger <alexander.le@outlook.dk> (https://sandergi.github.io/)",
-    "license": "MIT",
+    "bin": {
+        "sam": "./lib/cli.js"
+    },
     "bugs": {
         "url": "https://github.com/SanderGi/sqlite-auto-migrator/issues"
     },
-    "homepage": "https://github.com/SanderGi/sqlite-auto-migrator#readme",
-    "engines": {
-        "node": ">= 18.17.0"
-    },
-    "files": [
-        "LICENSE",
-        "README.md",
-        "index.js",
-        "lib/"
-    ],
-    "bin": {
-        "sam": "./lib/cli.js"
+    "config": {
+        "main": "index.mjs"
     },
     "dependencies": {
         "sqlite3": "^5.1.6"
     },
     "devDependencies": {
+        "@types/node": "^20.11.30",
         "eslint": "^8.56.0",
         "eslint-config-prettier": "^9.1.0",
-        "husky": "^8.0.3",
+        "fixpack": "^4.0.0",
+        "husky": "^9.0.11",
         "lint-staged": "^15.2.0",
         "prettier": "3.1.1",
         "sqlite-auto-migrator": "file:."
-    }
+    },
+    "engines": {
+        "node": ">= 18.17.0"
+    },
+    "files": [
+        "package.json",
+        "LICENSE",
+        "README.md",
+        "index.mjs",
+        "lib",
+        "types"
+    ],
+    "homepage": "https://github.com/SanderGi/sqlite-auto-migrator#readme",
+    "keywords": [
+        "database",
+        "migrations",
+        "sqlite"
+    ],
+    "license": "MIT",
+    "lint-staged": {
+        "*.js,*.mjs,*.cjs": [
+            "npx eslint --fix",
+            "npx prettier --write"
+        ],
+        "!(*.js,*.mjs,*.cjs)": "npx prettier --write --ignore-unknown",
+        "package.json": "npx fixpack"
+    },
+    "main": "index.mjs",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/SanderGi/sqlite-auto-migrator.git"
+    },
+    "scripts": {
+        "badges": "node scripts/badges.mjs",
+        "build": "npm run types && npm run badges",
+        "format": "(npx fixpack || true) && (npx eslint . --fix || true) && npx prettier . --write",
+        "lint": "npx eslint-config-prettier $npm_package_config_main && npx eslint $npm_package_config_main && npx prettier . --check",
+        "prepack": "npm run format && npm run build && npm run lint && npm test",
+        "prepare": "husky",
+        "test": "node --test --trace-warnings --experimental-test-coverage --test-reporter=spec --test-reporter=tap --test-reporter-destination=stdout --test-reporter-destination=tap.info ./test/test_*.mjs",
+        "types": "npx -p typescript tsc $npm_package_config_main --declaration --allowJs --emitDeclarationOnly --outDir types"
+    },
+    "types": "./types/index.d.mts"
 }
