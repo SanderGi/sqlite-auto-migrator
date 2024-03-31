@@ -1,6 +1,9 @@
 import { describe, it, before, beforeEach, mock } from 'node:test'; // read about the builtin Node.js test framework here: https://nodejs.org/docs/latest-v18.x/api/test.html
 import assert from 'node:assert';
 
+import events from 'node:events';
+events.setMaxListeners(0); // Disable the max listener warning since it happens in the node:test internals
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -407,7 +410,7 @@ describe('Migrator', () => {
                 ...MAKE_OPTIONS,
                 schemaPath: path.join(__dirname, 'schemas/empty.sql'),
             });
-            await migrator.make(Migrator.PROCEED, Migrator.PROCEED, true);
+            await migrator.make({ createIfNoChanges: true });
             const files = fs.readdirSync(MAKE_OPTIONS.migrationsPath);
             assert.strictEqual(files.length, 1);
             await assert.rejects(() => migrator.migrate(), { name: 'RolledBackTransaction' });
@@ -423,7 +426,7 @@ describe('Migrator', () => {
                 ...MAKE_OPTIONS,
                 schemaPath: path.join(__dirname, 'schemas/one_table_column_rename.sql'),
             });
-            await migrator2.make(Migrator.PROCEED);
+            await migrator2.make({ onRename: Migrator.PROCEED });
             await migrator2.migrate();
             const db = await Database.connect(MAKE_OPTIONS.dbPath);
             const rows = await db.all('SELECT id, username, age FROM users');
@@ -441,7 +444,7 @@ describe('Migrator', () => {
                 ...MAKE_OPTIONS,
                 schemaPath: path.join(__dirname, 'schemas/one_table_rename.sql'),
             });
-            await migrator2.make(Migrator.PROCEED);
+            await migrator2.make({ onRename: Migrator.PROCEED });
             await migrator2.migrate();
             const db = await Database.connect(MAKE_OPTIONS.dbPath);
             const rows = await db.all('SELECT id, name, age FROM users_renamed');
@@ -488,6 +491,201 @@ describe('Migrator', () => {
                 else if (columnInfo.name === 'age') assert(columnInfo.pk > 0);
                 if (columnInfo.name === 'id') assert(columnInfo.pk === 0);
             }
+            await db.close();
+        });
+
+        it('should handle multiple tables with foreign keys', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            await db.run('PRAGMA foreign_keys = ON');
+            await db.run('INSERT INTO users (id, name, age) VALUES (1, "test", 20)');
+            await db.run('INSERT INTO foreignkeytousers (id, user_id) VALUES (1, 1)');
+            await assert.rejects(
+                db.run('INSERT INTO foreignkeytousers (id, user_id) VALUES (2, 2)'),
+            );
+            await db.close();
+        });
+
+        it('should handle many migration files adding views, triggers, indices, and virtual tables', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema2_add_view.sql'),
+            });
+            await migrator2.make();
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows.length, 0);
+            await db.run('INSERT INTO users (id, name, age) VALUES (1, "test", 20)');
+            const rows2 = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows2.length, 1);
+            assert.strictEqual(rows2[0].id, 1);
+            assert.strictEqual(rows2[0].name, 'test');
+            await db.close();
+
+            const migrator3 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema3_add_index.sql'),
+            });
+            await migrator3.make();
+            await migrator3.migrate();
+            const db2 = await Database.connect(MAKE_OPTIONS.dbPath);
+            const indexes = await db2.all('PRAGMA index_list(users)');
+            assert.strictEqual(indexes.length, 1);
+            assert.strictEqual(indexes[0].name, 'users_name_index');
+            await db2.close();
+
+            const migrator4 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema4_add_trigger.sql'),
+            });
+            await migrator4.make();
+            await migrator4.migrate();
+            const db3 = await Database.connect(MAKE_OPTIONS.dbPath);
+            await db3.run('INSERT INTO users (id, name, age) VALUES (2, "test", 20)');
+            const rows3 = await db3.all('SELECT * FROM users ORDER BY id ASC');
+            assert.strictEqual(rows3.length, 3);
+            assert.strictEqual(rows3[2].name, 'trigger');
+            await db3.close();
+
+            const migrator5 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema5_add_virtual_table.sql'),
+            });
+            await migrator5.make();
+            await migrator5.migrate();
+            const db4 = await Database.connect(MAKE_OPTIONS.dbPath);
+            const tables = await db4.all(
+                'SELECT name FROM sqlite_master WHERE type = "table" AND name LIKE "users_fts%"',
+            );
+            assert.strictEqual(tables.length, 6);
+            await db4.close();
+        });
+
+        it('should handle many changes with fewer migrations', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema2_add_view.sql'),
+            });
+            await migrator.make();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema5_add_virtual_table.sql'),
+            });
+            await migrator2.make();
+            await migrator2.migrate();
+
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows.length, 0);
+            await db.run('INSERT INTO users (id, name, age) VALUES (1, "test", 20)');
+            const rows2 = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows2.length, 2);
+            assert.strictEqual(rows2[0].id, 1);
+            assert.strictEqual(rows2[0].name, 'test');
+            const indexes = await db.all('PRAGMA index_list(users)');
+            assert.strictEqual(indexes.length, 1);
+            assert.strictEqual(indexes[0].name, 'users_name_index');
+            await db.run('INSERT INTO users (id, name, age) VALUES (3, "test", 20)');
+            const rows3 = await db.all('SELECT * FROM users ORDER BY id ASC');
+            assert.strictEqual(rows3.length, 4);
+            assert.strictEqual(rows3[3].name, 'trigger');
+            const tables = await db.all(
+                'SELECT name FROM sqlite_master WHERE type = "table" AND name LIKE "users_fts%"',
+            );
+            assert.strictEqual(tables.length, 6);
+            await db.close();
+        });
+
+        it('should handle down migrations for many changes', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema2_add_view.sql'),
+            });
+            await migrator.make();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema5_add_virtual_table.sql'),
+            });
+            await migrator2.make();
+            await migrator2.migrate();
+
+            await migrator2.migrate('0000');
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows.length, 0);
+            await db.run('INSERT INTO users (id, name, age) VALUES (1, "test", 20)');
+            const rows2 = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows2.length, 1);
+            assert.strictEqual(rows2[0].id, 1);
+            assert.strictEqual(rows2[0].name, 'test');
+            const tables = await db.all(
+                'SELECT name FROM sqlite_master WHERE type = "table" AND name LIKE "users_fts%"',
+            );
+            assert.strictEqual(tables.length, 0);
+            await db.close();
+
+            await migrator.migrate('zero');
+            const db2 = await Database.connect(MAKE_OPTIONS.dbPath);
+            assert.rejects(db2.get('SELECT * FROM users_view'));
+            assert.rejects(db2.get('SELECT * FROM users'));
+            assert.rejects(db2.get('SELECT * FROM foreignkeytousers'));
+            assert.rejects(db2.get('SELECT * FROM users_fts'));
+            await db2.close();
+        });
+
+        it('should not treat formatting changes as schema changes', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema5_add_virtual_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema6_obfuscated.sql'),
+            });
+            await migrator2.make();
+            const migrationFiles = fs.readdirSync(MAKE_OPTIONS.migrationsPath);
+            assert.strictEqual(migrationFiles.length, 1);
+
+            await migrator2.make({ createIfNoChanges: true });
+            await assert.rejects(migrator2.migrate());
+
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows.length, 0);
+            await db.run('INSERT INTO users (id, name, age) VALUES (1, "test", 20)');
+            const rows2 = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows2.length, 2);
+            assert.strictEqual(rows2[0].id, 1);
+            assert.strictEqual(rows2[0].name, 'test');
+            const indexes = await db.all('PRAGMA index_list(users)');
+            assert.strictEqual(indexes.length, 1);
+            assert.strictEqual(indexes[0].name, 'users_name_index');
+            await db.run('INSERT INTO users (id, name, age) VALUES (3, "test", 20)');
+            const rows3 = await db.all('SELECT * FROM users ORDER BY id ASC');
+            assert.strictEqual(rows3.length, 4);
+            assert.strictEqual(rows3[3].name, 'trigger');
+            const tables = await db.all(
+                'SELECT name FROM sqlite_master WHERE type = "table" AND name LIKE "users_fts%"',
+            );
+            assert.strictEqual(tables.length, 6);
             await db.close();
         });
     });

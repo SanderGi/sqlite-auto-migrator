@@ -44,11 +44,8 @@
     ],
     "license": "MIT",
     "lint-staged": {
-        "*.js,*.mjs,*.cjs": [
-            "npx eslint --fix",
-            "npx prettier --write"
-        ],
-        "!(*.js,*.mjs,*.cjs)": "npx prettier --write --ignore-unknown",
+        "*.js,*.mjs,*.cjs": "npx eslint --fix",
+        "*": "npx prettier --write --ignore-unknown",
         "package.json": "npx fixpack"
     },
     "main": "index.mjs",
