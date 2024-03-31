@@ -112,7 +112,7 @@ describe('Database', () => {
 
         beforeEach(async () => {
             await db.run('DROP TABLE IF EXISTS test');
-            await db.run('CREATE TABLE IF NOT EXISTS test (id INTEGER PRIMARY KEY, name TEXT)');
+            await db.run('CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT)');
         });
 
         it('should be able to get a single row', async () => {

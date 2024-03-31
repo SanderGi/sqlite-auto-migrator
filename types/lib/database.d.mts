@@ -13,18 +13,21 @@ export class Database {
      * Connects to a database file.
      * @param {string} filename the path to the database file. Use ':memory:' for an in-memory database and '' for a temporary on-disk database.
      * @param {number} [mode=Database.OPEN_READWRITE | Database.OPEN_CREATE | Database.OPEN_FULLMUTEX] the mode to open the database in. One or more of Database.OPEN_READONLY, Database.OPEN_READWRITE, Database.OPEN_CREATE, Database.OPEN_FULLMUTEX, Database.OPEN_URI, Database.OPEN_SHAREDCACHE, Database.OPEN_PRIVATECACHE. The default value is OPEN_READWRITE | OPEN_CREATE | OPEN_FULLMUTEX.
+     * @param {boolean} [verbose=true] whether to print verbose error messages with stack traces and sql/params
      * @returns {Promise<Database>} a promise that resolves to a Database instance connected to the database file
      * @throws {Error} if the database cannot be opened
      * @see {@link sqlite3.Database}
      */
-    static connect(filename: string, mode?: number): Promise<Database>;
+    static connect(filename: string, mode?: number, verbose?: boolean): Promise<Database>;
     /**
      * Stores the database connection.
      * @private
      * @param {sqlite3.Database} db the database connection
+     * @param {boolean} verbose whether to print verbose error messages with stack traces and sql/params
      */
     private constructor();
     db: sqlite3.Database;
+    verbose: boolean;
     /**
      * Loads a SQLite extension.
      * @param {string} path the path to the compiled SQLite extension
@@ -115,9 +118,11 @@ export class Statement<Row = any, Params extends any[] = any[]> {
      * Stores the prepared statement.
      * @private should be created with `Database#prepare` instead
      * @param {sqlite3.Statement} stmt the prepared statement
+     * @param {string|null} sql the SQL query that was prepared if verbose error messages are enabled, otherwise null
      */
     private constructor();
     stmt: sqlite3.Statement;
+    sql: string;
     /**
      * Binds parameters to the prepared statement. Completely resets the row cursor and removes any previously bound parameters.
      * @param {Params} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.

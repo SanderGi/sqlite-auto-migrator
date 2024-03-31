@@ -39,13 +39,14 @@ export class Migrator {
      * @param {boolean} createIfNoChanges Whether to create a new migration file even if no changes are needed. Default is `false`
      * @throws an appropriate {@link ValidationError} if the options or prompted input is invalid.
      * @throws an appropriate {@link ManualMigrationRequired} if a manual migration is required.
+     * @throws an appropriate {@link Error} if an unexpected error occurs, e.g., not being able to connect to the database, close the database, or remove temporary files.
      */
     make(onRename?: Action, onDestructiveChange?: Action, createIfNoChanges?: boolean): Promise<void>;
     /**
      * Migrates the database state to the given target. Automatically figures out if the migrations
      * in the migration folder have changed (e.g. changed git branch) and undoes and reapplies migrations as necessary.
      * @param {string} target The migration to set the database state to, e.g., "0001" (a migration id), "zero" (undo all migrations) or "latest" (default).
-     * @param {function} log a function to log messages to. Default is `process.stdout.write`
+     * @param {function} log a function to log messages through. Default is `process.stdout.write`
      * @throws an appropriate {@link ValidationError} if the options or target is invalid.
      * @throws an appropriate {@link RolledBackTransaction} if the migrations failed causing the transaction to be rolled back.
      * @throws an appropriate {@link IntegrityError} if the integrity or foreign key checks fail after the migration.
@@ -53,6 +54,13 @@ export class Migrator {
      * @returns {Promise<void>} a promise that resolves when the migrations are complete or rejects if an error occurs
      */
     migrate(target?: string, log?: Function): Promise<void>;
+    /**
+     * Gets the current migration state of the database.
+     * @returns {Promise<Status>} the current migration state of the database
+     * @throws an appropriate {@link ValidationError} if the options are invalid.
+     * @throws an appropriate {@link Error} if an unexpected error occurs, e.g., not being able to connect to the database, close the database, or remove temporary files.
+     */
+    status(): Promise<Status>;
     #private;
 }
 /**
@@ -100,4 +108,25 @@ export type MigrationOptions = {
      * Path to the schema file. Default is `path.join(process.cwd(), 'schema.sql')`
      */
     schemaPath?: string;
+};
+/**
+ * The migration status of the database.
+ */
+export type Status = {
+    /**
+     * The current migration id
+     */
+    current_id: string;
+    /**
+     * The current migration name
+     */
+    current_name: string;
+    /**
+     * The options used to create the migrator
+     */
+    options: MigrationOptions;
+    /**
+     * All the pragmas of the database, includes non-persisted pragmas that need to be set on each new connection
+     */
+    pragmas: any;
 };

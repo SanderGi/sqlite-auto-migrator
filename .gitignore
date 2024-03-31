@@ -6,6 +6,9 @@ node_modules
 # Coverage
 tap.info
 
+# Tests
+test/migrations/*
+
 # OS generated files
 .DS_Store
 

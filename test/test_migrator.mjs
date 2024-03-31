@@ -1,4 +1,4 @@
-import { describe, it, before, beforeEach } from 'node:test'; // read about the builtin Node.js test framework here: https://nodejs.org/docs/latest-v18.x/api/test.html
+import { describe, it, before, beforeEach, mock } from 'node:test'; // read about the builtin Node.js test framework here: https://nodejs.org/docs/latest-v18.x/api/test.html
 import assert from 'node:assert';
 
 import fs from 'node:fs';
@@ -31,6 +31,11 @@ const FOREIGN_KEY_VIOLATION_OPTIONS = {
     migrationsPath: path.join(__dirname, 'foreign_key_violation_migration'),
 };
 
+const MAKE_OPTIONS = {
+    ...VALID_OPTIONS,
+    migrationsPath: path.join(__dirname, 'migrations'),
+};
+
 const CLEAR_DB = `
     PRAGMA writable_schema = 1;
     DELETE FROM sqlite_master;
@@ -39,6 +44,12 @@ const CLEAR_DB = `
 `;
 
 describe('Migrator', () => {
+    // Mock the migrate method to suppress output
+    const originalMigrate = Migrator.prototype.migrate;
+    Migrator.prototype.migrate = mock.fn(Migrator.prototype.migrate, async function (target) {
+        return originalMigrate.call(this, target, () => {});
+    });
+
     describe('constructor', () => {
         before(async () => {
             const db = await Database.connect(VALID_OPTIONS.dbPath);
@@ -325,6 +336,159 @@ describe('Migrator', () => {
         it('should throw an IntegrityError on foreign_key violation', async () => {
             const migrator = new Migrator(FOREIGN_KEY_VIOLATION_OPTIONS);
             await assert.rejects(migrator.migrate('0000'), { name: 'IntegrityError' });
+        });
+    });
+
+    describe('make()', () => {
+        beforeEach(async () => {
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            await db.exec(CLEAR_DB);
+            await db.close();
+
+            fs.rmSync(MAKE_OPTIONS.migrationsPath, { recursive: true, force: true });
+            fs.mkdirSync(MAKE_OPTIONS.migrationsPath);
+        });
+
+        it('should be able to create a migration file for one table', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const files = fs.readdirSync(MAKE_OPTIONS.migrationsPath);
+            assert.strictEqual(files.length, 1);
+        });
+
+        it('should create a working up migration for one table', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, name, age FROM users');
+            assert.strictEqual(rows.length, 0);
+        });
+
+        it('should create a working down migration for one table', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+            await migrator.migrate('zero');
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            assert.rejects(db.get('SELECT id, name, age FROM users'));
+        });
+
+        it('should not do anything if there are no changes to the schema', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/empty.sql'),
+            });
+            await migrator.make();
+            const files = fs.readdirSync(MAKE_OPTIONS.migrationsPath);
+            assert.strictEqual(files.length, 0);
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator2.make();
+            await migrator2.make();
+            const files2 = fs.readdirSync(MAKE_OPTIONS.migrationsPath);
+            assert.strictEqual(files2.length, 1);
+        });
+
+        it('should create a migration file that errors if createIfNoChanges is true and no changes are made', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/empty.sql'),
+            });
+            await migrator.make(Migrator.PROCEED, Migrator.PROCEED, true);
+            const files = fs.readdirSync(MAKE_OPTIONS.migrationsPath);
+            assert.strictEqual(files.length, 1);
+            await assert.rejects(() => migrator.migrate(), { name: 'RolledBackTransaction' });
+        });
+
+        it('should handle a column rename', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_column_rename.sql'),
+            });
+            await migrator2.make(Migrator.PROCEED);
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, username, age FROM users');
+            assert.strictEqual(rows.length, 0);
+            await db.close();
+        });
+
+        it('should handle a table rename', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_rename.sql'),
+            });
+            await migrator2.make(Migrator.PROCEED);
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, name, age FROM users_renamed');
+            assert.strictEqual(rows.length, 0);
+            await db.close();
+        });
+
+        it('should handle changing a column type', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_change_column_type.sql'),
+            });
+            await migrator2.make();
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, name, age FROM users');
+            assert.strictEqual(rows.length, 0);
+            await db.close();
+        });
+
+        it('should handle changing primary key', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_primarykey_change.sql'),
+            });
+            await migrator2.make();
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, name, age FROM users');
+            assert.strictEqual(rows.length, 0);
+            const info = await db.all(`PRAGMA table_info(users)`);
+            for (const columnInfo of info) {
+                if (columnInfo.name === 'name') assert(columnInfo.pk > 0);
+                else if (columnInfo.name === 'age') assert(columnInfo.pk > 0);
+                if (columnInfo.name === 'id') assert(columnInfo.pk === 0);
+            }
+            await db.close();
         });
     });
 });
