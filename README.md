@@ -92,7 +92,7 @@ $ sam status [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name
 ```
 
 ```console
-$ sam make [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name>] [--schemaPath <path>] [--onRename <action>] [--onDestructiveChange <action>]
+$ sam make [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name>] [--schemaPath <path>] [--onRename <action>] [--onDestructiveChange <action>] [--onChangedIndex <action>] [--onChangedView <action>] [--onChangedTrigger <action>] [--onlyCreateIfChanges]
 ```
 
 ```console
@@ -109,10 +109,12 @@ TODO
 
 ### TypeScript and JSDoc Support
 
+TODO
+
 ## Examples
 
 The following application uses the sqlite-auto-migrator: [Attendance Scanner](https://github.com/clr-li/AttendanceScanner).
-You can also take a look at the [test suite](test) for more examples.
+You can also take a look at the [test suite](test) and [cli](lib/cli.js) for more examples.
 
 ## Alternatives
 

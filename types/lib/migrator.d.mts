@@ -23,7 +23,7 @@ export class Migrator {
      */
     static SKIP: Action;
     /**
-     * @param {MigrationOptions} options the options for the migrator {@link MigrationOptions}
+     * @param {MigrationOptions} [options={}] the options for the migrator {@link MigrationOptions}
      * @throws an appropriate {@link ValidationError} if the options are invalid.
      */
     constructor(options?: MigrationOptions);
@@ -34,14 +34,13 @@ export class Migrator {
     migrationTable: string;
     /**
      * Creates a new migration file that when applied will bring the latest migration file state to that of the current schema.
-     * @param {Action} onRename How to handle autodetected column/table renames. Default is `Migrator.PROMPT`
-     * @param {Action} onDestructiveChange How to handle irreversible changes like dropping tables/columns. Default is `Migrator.PROMPT`
-     * @param {boolean} createIfNoChanges Whether to create a new migration file even if no changes are needed. Default is `false`
+     * @param {MakeOptions} [keyargs={}] specifies how to handle renames/destructive changes and more.
      * @throws an appropriate {@link ValidationError} if the options or prompted input is invalid.
      * @throws an appropriate {@link ManualMigrationRequired} if a manual migration is required.
      * @throws an appropriate {@link Error} if an unexpected error occurs, e.g., not being able to connect to the database, close the database, or remove temporary files.
+     * @effects writes a new migration file to the migrations folder if no unexpected/validation errors occur and keyargs.createIfNoChanges is true or there are changes to be made
      */
-    make(onRename?: Action, onDestructiveChange?: Action, createIfNoChanges?: boolean): Promise<void>;
+    make(keyargs?: MakeOptions): Promise<void>;
     /**
      * Migrates the database state to the given target. Automatically figures out if the migrations
      * in the migration folder have changed (e.g. changed git branch) and undoes and reapplies migrations as necessary.
@@ -56,7 +55,7 @@ export class Migrator {
     migrate(target?: string, log?: Function): Promise<void>;
     /**
      * Gets the current migration state of the database.
-     * @returns {Promise<Status>} the current migration state of the database
+     * @returns {Promise<Status>} the current migration state of the database as a {@link Status} object
      * @throws an appropriate {@link ValidationError} if the options are invalid.
      * @throws an appropriate {@link Error} if an unexpected error occurs, e.g., not being able to connect to the database, close the database, or remove temporary files.
      */
@@ -110,6 +109,35 @@ export type MigrationOptions = {
     schemaPath?: string;
 };
 /**
+ * The options for the migrator.make() method.
+ */
+export type MakeOptions = {
+    /**
+     * How to handle autodetected column/table renames. Default is `Migrator.PROMPT`
+     */
+    onRename?: Action;
+    /**
+     * How to handle irreversible changes like dropping tables/columns. Default is `Migrator.PROMPT`
+     */
+    onDestructiveChange?: Action;
+    /**
+     * How to handle dropped/changed views. Default is `Migrator.PROCEED`
+     */
+    onChangedView?: Action;
+    /**
+     * How to handle dropped/changed indices. Default is `Migrator.PROCEED`
+     */
+    onChangedIndex?: Action;
+    /**
+     * How to handle dropped/changed triggers. Default is `Migrator.PROCEED`
+     */
+    onChangedTrigger?: Action;
+    /**
+     * Whether to create a new migration file even if no changes are needed. Default is `false`
+     */
+    createIfNoChanges?: boolean;
+};
+/**
  * The migration status of the database.
  */
 export type Status = {
@@ -129,4 +157,26 @@ export type Status = {
      * All the pragmas of the database, includes non-persisted pragmas that need to be set on each new connection
      */
     pragmas: any;
+    /**
+     * The extra migrations that have been applied but are not in the migrations folder
+     */
+    extra_migrations: Array<{
+        id: string;
+        name: string;
+    }>;
+    /**
+     * The migrations that are in the migrations folder but have not been applied
+     */
+    missing_migrations: Array<{
+        id: string;
+        name: string;
+    }>;
+    /**
+     * True if there are any changes between the schema file and migration files, false otherwise
+     */
+    has_schema_changes: boolean;
+    /**
+     * The error that occurred while diffing the schema file and migration files if any
+     */
+    schema_diff_error?: Error;
 };

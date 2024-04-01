@@ -4,6 +4,8 @@ import assert from 'node:assert';
 import events from 'node:events';
 events.setMaxListeners(0); // Disable the max listener warning since it happens in the node:test internals
 
+import readline from 'node:readline';
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +72,24 @@ describe('Migrator', () => {
 
         it('should work with valid options', () => {
             assert.doesNotThrow(() => new Migrator(VALID_OPTIONS));
+        });
+
+        it('should not allow anonymous disk databases', () => {
+            assert.throws(() => new Migrator({ ...VALID_OPTIONS, dbPath: '' }));
+        });
+
+        it('should not allow anonymous memory databases', () => {
+            assert.throws(() => new Migrator({ ...VALID_OPTIONS, dbPath: ':memory:' }));
+        });
+
+        it('should not allow a directory as a database', () => {
+            assert.throws(() => new Migrator({ ...VALID_OPTIONS, dbPath: '.' }));
+        });
+
+        it('should create the migrations folder if it does not exist', () => {
+            fs.rmSync(MAKE_OPTIONS.migrationsPath, { recursive: true, force: true });
+            assert.doesNotThrow(() => new Migrator(MAKE_OPTIONS));
+            assert.ok(fs.existsSync(MAKE_OPTIONS.migrationsPath));
         });
     });
 
@@ -434,6 +454,98 @@ describe('Migrator', () => {
             await db.close();
         });
 
+        it('should handle a column rename via prompt', async t => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_column_rename.sql'),
+            });
+            t.mock.method(readline, 'createInterface', () => {
+                return {
+                    question: (_, callback) => {
+                        callback('y');
+                    },
+                    close: () => {},
+                };
+            });
+            await migrator2.make({ onRename: Migrator.PROMPT });
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, username, age FROM users');
+            assert.strictEqual(rows.length, 0);
+            await db.close();
+        });
+
+        it('should handle skipping a column rename', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_column_rename.sql'),
+            });
+            await migrator2.make({ onRename: Migrator.SKIP, onDestructiveChange: Migrator.SKIP });
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, name, age FROM users');
+            assert.strictEqual(rows.length, 0);
+            await db.close();
+        });
+
+        it('should handle skipping a column rename and then requiring manual migration for the column add/remove via prompt', async t => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_column_rename.sql'),
+            });
+            let count = 0;
+            t.mock.method(readline, 'createInterface', () => {
+                return {
+                    question: (_, callback) => {
+                        callback(count++ === 0 ? 'n' : 'm');
+                    },
+                    close: () => {},
+                };
+            });
+            await assert.rejects(
+                migrator2.make({
+                    onRename: Migrator.PROMPT,
+                    onDestructiveChange: Migrator.PROMPT,
+                }),
+                { name: 'ManualMigrationRequired' },
+            );
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, username, age FROM users');
+            assert.strictEqual(rows.length, 0);
+            await db.close();
+        });
+
+        it('should throw a ValidationError on invalid actions', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_column_rename.sql'),
+            });
+            await assert.rejects(migrator2.make({ onRename: 'adjwaoidjawodjaiodjadaj' }), {
+                name: 'ValidationError',
+            });
+        });
+
         it('should handle a table rename', async () => {
             const migrator = new Migrator({
                 ...MAKE_OPTIONS,
@@ -445,6 +557,28 @@ describe('Migrator', () => {
                 schemaPath: path.join(__dirname, 'schemas/one_table_rename.sql'),
             });
             await migrator2.make({ onRename: Migrator.PROCEED });
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, name, age FROM users_renamed');
+            assert.strictEqual(rows.length, 0);
+            await db.close();
+        });
+
+        it('should handle throwing a ManualMigrationRequired error on table rename if specified', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_rename.sql'),
+            });
+            await assert.rejects(migrator2.make({ onRename: Migrator.REQUIRE_MANUAL_MIGRATION }), {
+                name: 'ManualMigrationRequired',
+            });
+
+            // migration file should still be created
             await migrator2.migrate();
             const db = await Database.connect(MAKE_OPTIONS.dbPath);
             const rows = await db.all('SELECT id, name, age FROM users_renamed');
@@ -648,6 +782,22 @@ describe('Migrator', () => {
             await db2.close();
         });
 
+        it('should handle one big down migration', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema5_add_virtual_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+            await migrator.migrate('zero');
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            await assert.rejects(db.get('SELECT * FROM users_view'));
+            await assert.rejects(db.get('SELECT * FROM users'));
+            await assert.rejects(db.get('SELECT * FROM foreignkeytousers'));
+            await assert.rejects(db.get('SELECT * FROM users_fts'));
+            await db.close();
+        });
+
         it('should not treat formatting changes as schema changes', async () => {
             const migrator = new Migrator({
                 ...MAKE_OPTIONS,
@@ -686,6 +836,78 @@ describe('Migrator', () => {
                 'SELECT name FROM sqlite_master WHERE type = "table" AND name LIKE "users_fts%"',
             );
             assert.strictEqual(tables.length, 6);
+            await db.close();
+        });
+
+        it('should handle removing a table', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await assert.rejects(
+                migrator2.make({ onDestructiveChange: Migrator.REQUIRE_MANUAL_MIGRATION }),
+                {
+                    name: 'ManualMigrationRequired',
+                },
+            );
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            assert.rejects(db.get('SELECT * FROM foreignkeytousers'));
+            await db.all('SELECT * FROM users');
+            await db.close();
+        });
+
+        it('should not allow modifying the migrations table', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/migrations_table.sql'),
+            });
+            await assert.rejects(migrator.make(), { name: 'ValidationError' });
+        });
+
+        it('should allow modifying a view by removing and readding it', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema2_add_view.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema2.5_modify_view.sql'),
+            });
+            await migrator2.make();
+            await migrator2.migrate();
+
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            await db.all('SELECT id, name, age FROM users_view');
+            await db.close();
+        });
+
+        it('should allow skipping a table remove', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/empty.sql'),
+            });
+            await migrator2.make({ onDestructiveChange: Migrator.SKIP });
+            await migrator2.migrate();
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            await db.all('SELECT * FROM users');
             await db.close();
         });
     });
