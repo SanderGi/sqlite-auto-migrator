@@ -172,6 +172,33 @@ describe('Database', () => {
             assert.deepStrictEqual(rows, [{ id: 2, name: 'test2' }]);
         });
 
+        it('should be able to get all rows with multiple parameters', async () => {
+            await db.run('INSERT INTO test (name) VALUES (?)', 'test');
+            await db.run('INSERT INTO test (name) VALUES (?)', 'test2');
+            const rows = await db.all(
+                'SELECT * FROM test WHERE name = ? OR name = ?',
+                'test2',
+                'test',
+            );
+            assert.deepStrictEqual(rows, [
+                { id: 1, name: 'test' },
+                { id: 2, name: 'test2' },
+            ]);
+        });
+
+        it('should be able to get all rows with multiple parameters as an array', async () => {
+            await db.run('INSERT INTO test (name) VALUES (?)', 'test');
+            await db.run('INSERT INTO test (name) VALUES (?)', 'test2');
+            const rows = await db.all('SELECT * FROM test WHERE name = ? OR name = ?', [
+                'test2',
+                'test',
+            ]);
+            assert.deepStrictEqual(rows, [
+                { id: 1, name: 'test' },
+                { id: 2, name: 'test2' },
+            ]);
+        });
+
         it('should be able to get all rows with key-value parameters', async () => {
             await db.run('INSERT INTO test (name) VALUES (?)', 'test');
             await db.run('INSERT INTO test (name) VALUES (?)', 'test2');
@@ -179,6 +206,19 @@ describe('Database', () => {
                 $name: 'test2',
             });
             assert.deepStrictEqual(rows, [{ id: 2, name: 'test2' }]);
+        });
+
+        it('should be able to get all rows with multiple key-value parameters', async () => {
+            await db.run('INSERT INTO test (name) VALUES (?)', 'test');
+            await db.run('INSERT INTO test (name) VALUES (?)', 'test2');
+            const rows = await db.all('SELECT * FROM test WHERE name = $name OR name = $name2', {
+                $name: 'test2',
+                $name2: 'test',
+            });
+            assert.deepStrictEqual(rows, [
+                { id: 1, name: 'test' },
+                { id: 2, name: 'test2' },
+            ]);
         });
 
         it('should return an empty array if no rows are found', async () => {

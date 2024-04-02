@@ -48,7 +48,7 @@ const CLEAR_DB = `
     VACUUM;
 `;
 
-describe('Migrator', () => {
+await describe('Migrator', () => {
     // Mock the migrate method to suppress output
     const originalMigrate = Migrator.prototype.migrate;
     Migrator.prototype.migrate = mock.fn(Migrator.prototype.migrate, async function (target) {

@@ -44,7 +44,7 @@ export class Migrator {
     /**
      * Migrates the database state to the given target. Automatically figures out if the migrations
      * in the migration folder have changed (e.g. changed git branch) and undoes and reapplies migrations as necessary.
-     * @param {string} target The migration to set the database state to, e.g., "0001" (a migration id), "zero" (undo all migrations) or "latest" (default).
+     * @param {string} target The migration to set the database state to, e.g., "0001" (a migration id), "zero" (undo all migrations) or "latest" (default)
      * @param {function} log a function to log messages through. Default is `process.stdout.write`
      * @throws an appropriate {@link ValidationError} if the options or target is invalid.
      * @throws an appropriate {@link RolledBackTransaction} if the migrations failed causing the transaction to be rolled back.
@@ -92,19 +92,19 @@ export type MigrationFile = {
  */
 export type MigrationOptions = {
     /**
-     * Path to the SQLite database file. Default is `path.join(process.cwd(), 'data.db')`
+     * Path to the SQLite database file. Default is `process.env.SAM_DB_PATH` if provided, otherwise `path.join(process.cwd(), 'data.db')`
      */
     dbPath?: string;
     /**
-     * Path to the migrations folder. Default is `path.join(process.cwd(), 'migrations')`
+     * Path to the migrations folder. Default is `process.env.SAM_MIGRATION_PATH` if provided, otherwise `path.join(process.cwd(), 'migrations')`
      */
     migrationsPath?: string;
     /**
-     * Name of the table to store migration information in. Default is `migrations`
+     * Name of the table to store migration information in. Default is `process.env.SAM_MIGRATION_TABLE` if provided, otherwise `migrations`
      */
     migrationTable?: string;
     /**
-     * Path to the schema file. Default is `path.join(process.cwd(), 'schema.sql')`
+     * Path to the schema file. Default is `process.env.SAM_SCHEMA_PATH` if provided, otherwise `path.join(process.cwd(), 'schema.sql')`
      */
     schemaPath?: string;
 };
@@ -113,27 +113,27 @@ export type MigrationOptions = {
  */
 export type MakeOptions = {
     /**
-     * How to handle autodetected column/table renames. Default is `Migrator.PROMPT`
+     * How to handle autodetected column/table renames. Default is `process.env.SAM_ON_RENAME` if provided, otherwise `Migrator.PROMPT`
      */
     onRename?: Action;
     /**
-     * How to handle irreversible changes like dropping tables/columns. Default is `Migrator.PROMPT`
+     * How to handle irreversible changes like dropping tables/columns. Default is `process.env.SAM_ON_DESTRUCTIVE_CHANGE` if provided, otherwise `Migrator.PROMPT`
      */
     onDestructiveChange?: Action;
     /**
-     * How to handle dropped/changed views. Default is `Migrator.PROCEED`
+     * How to handle dropped/changed views. Default is `process.env.SAM_ON_CHANGED_VIEW` if provided, otherwise `Migrator.PROCEED`
      */
     onChangedView?: Action;
     /**
-     * How to handle dropped/changed indices. Default is `Migrator.PROCEED`
+     * How to handle dropped/changed indices. Default is `process.env.SAM_ON_CHANGED_INDEX` if provided, otherwise `Migrator.PROCEED`
      */
     onChangedIndex?: Action;
     /**
-     * How to handle dropped/changed triggers. Default is `Migrator.PROCEED`
+     * How to handle dropped/changed triggers. Default is `process.env.SAM_ON_CHANGED_TRIGGER` if provided, otherwise `Migrator.PROCEED`
      */
     onChangedTrigger?: Action;
     /**
-     * Whether to create a new migration file even if no changes are needed. Default is `false`
+     * Whether to create a new migration file even if no changes are needed. Default is true if `process.env.SAM_CREATE_IF_NO_CHANGES === 'true'` and false otherwise
      */
     createIfNoChanges?: boolean;
 };
@@ -179,4 +179,8 @@ export type Status = {
      * The error that occurred while diffing the schema file and migration files if any
      */
     schema_diff_error?: Error;
+    /**
+     * True if the database state has been tampered with and no longer matches the applied migrations, false otherwise
+     */
+    has_tampered_data: boolean;
 };

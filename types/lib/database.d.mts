@@ -92,14 +92,14 @@ export class Database {
     /**
      * Prepares a SQL query with parameters and returns a prepared statement.
      * @param {string} sql the SQL query to prepare
-     * @param {Params} params the parameters to bind to the query. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
+     * @param {Params | Params[]} params the parameters to bind to the query. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
      * @template [Row=any] - the type of the row object that is returned
-     * @template {any[]} [Params=any[]] - the type of the parameters that can be bound to the prepared statement
+     * @template {any[] | Object} [Params=any] - the type of the parameters that can be bound to the prepared statement
      * @returns {Promise<Statement<Row, Params>} a promise that resolves to a {@link Statement} object representing the prepared statement
      * @throws {Error} if the query cannot be prepared
      * @see {@link sqlite3.Database#prepare}
      */
-    prepare<Row_3 = any, Params extends any[] = any[]>(sql: string, ...params: Params): Promise<Statement<Row_3, Params>>;
+    prepare<Row_3 = any, Params extends unknown = any>(sql: string, ...params: Params | Params[]): Promise<Statement<Row_3, Params>>;
     /**
      * Closes the database connection.
      * @returns {Promise<void>} a promise that resolves when the database connection has been closed
@@ -111,9 +111,9 @@ export class Database {
 /**
  * Represents a prepared statement. Async wrapper around the sqlite3.Statement class.
  * @template [Row=any] - the type of the row object that is returned
- * @template {any[]} [Params=any[]] - the type of the parameters that can be bound to the prepared statement
+ * @template {any[] | Object} [Params=any[]] - the type of the parameters that can be bound to the prepared statement
  */
-export class Statement<Row = any, Params extends any[] = any[]> {
+export class Statement<Row = any, Params extends unknown = any[]> {
     /**
      * Stores the prepared statement.
      * @private should be created with `Database#prepare` instead
@@ -125,12 +125,12 @@ export class Statement<Row = any, Params extends any[] = any[]> {
     sql: string;
     /**
      * Binds parameters to the prepared statement. Completely resets the row cursor and removes any previously bound parameters.
-     * @param {Params} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
+     * @param {Params | Params[]} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
      * @returns {Promise<void>} a promise that resolves when the parameters have been bound
      * @throws {Error} if the parameters cannot be bound
      * @see {@link sqlite3.Statement#bind}
      */
-    bind(...params: Params): Promise<void>;
+    bind(...params: Params | Params[]): Promise<void>;
     /**
      * Resets the row cursor so the prepared statement can be executed again with the same bound parameters.
      * @returns {Promise<void>} a promise that resolves when the prepared statement has been reset
@@ -147,31 +147,31 @@ export class Statement<Row = any, Params extends any[] = any[]> {
     finalize(): Promise<void>;
     /**
      * Runs the prepared statement with the optional bound parameters (overwriting any previously bound parameters when supplied).
-     * @param {Params} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
+     * @param {Params | Params[]} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
      * @returns {Promise<RunResult>} a promise that resolves to a {@link RunResult} object with a `lastID` property and a `changes` property
      * @throws {Error} if the prepared statement cannot be run
      * @see {@link sqlite3.Statement#run}
      */
-    run(...params: Params): Promise<RunResult>;
+    run(...params: Params | Params[]): Promise<RunResult>;
     /**
      * Gets a single row from the prepared statement with the optional bound parameters (overwriting any previously bound parameters when supplied).
-     * @param {Params} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
+     * @param {Params | Params[]} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
      * @returns {Promise<Row | undefined>} a promise that resolves to the first row returned by the prepared statement or undefined if no rows are returned
      * @throws {Error} if the prepared statement cannot be run
      * @see {@link sqlite3.Statement#get}
      */
-    get(...params: Params): Promise<Row | undefined>;
+    get(...params: Params | Params[]): Promise<Row | undefined>;
     /**
      * Gets all rows from the prepared statement with the optional bound parameters (overwriting any previously bound parameters when supplied).
-     * @param {Params} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
+     * @param {Params | Params[]} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
      * @returns {Promise<Row[]>} a promise that resolves to all rows returned by the prepared statement
      * @throws {Error} if the prepared statement cannot be run
      * @see {@link sqlite3.Statement#all}
      */
-    all(...params: Params): Promise<Row[]>;
+    all(...params: Params | Params[]): Promise<Row[]>;
     /**
      * Runs the prepared statement with the optional bound parameters (overwriting any previously bound parameters when supplied) and returns the rows one by one as an async generator (useful for saving memory with large query results).
-     * @param {Params} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
+     * @param {Params | Params[]} params the parameters to bind to the prepared statement. Supports a dictionary with `:name`, `@name` and `$name` style parameters, or an array with `?` position based parameters.
      * @returns {AsyncGenerator<Row, void, undefined>} an async generator that yields each row returned by the prepared statement
      * @throws {Error} if the prepared statement cannot be run
      * @example <caption>Using the async generator</caption>
@@ -182,7 +182,7 @@ export class Statement<Row = any, Params extends any[] = any[]> {
      * await stmt.finalize();
      * @see {@link sqlite3.Statement#each}
      */
-    each(...params: Params): AsyncGenerator<Row, void, undefined>;
+    each(...params: Params | Params[]): AsyncGenerator<Row, void, undefined>;
 }
 export type RunResult = {
     /**
