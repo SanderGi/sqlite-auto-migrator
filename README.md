@@ -158,7 +158,7 @@ Creates a new migration file in the migrations folder. The options are the same 
 $ sam migrate [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name>] [--schemaPath <path>] [<target migration>]
 ```
 
-Applies the unapplied migrations in the migrations folder up to the target migration. If no target migration is provided, all unapplied migrations are applied. Also unapplies any migrations that have been removed from the migrations folder. The options are the same as the `migrate` function and `Migrator constructor` in the JavaScript API. The target migration can be the migration id, the migration name, or one of the following special values: `zero`, `latest`. If no target migration is provided, the default is `latest`. If the target migration is `zero`, all migrations are unapplied.
+Applies the unapplied migrations in the migrations folder up to the target migration. If no target migration is provided, all unapplied migrations are applied. Also unapplies any migrations that have been removed from the migrations folder. The options are the same as the `migrate` function and `Migrator constructor` in the JavaScript API. The target migration can be the migration id or one of the following special values: `zero`, `latest`. If no target migration is provided, the default is `latest`. If the target migration is `zero`, all migrations are unapplied.
 
 > Note: The target migration must be the last argument if provided.
 
