@@ -49,10 +49,14 @@ const CLEAR_DB = `
 `;
 
 await describe('Migrator', () => {
-    // Mock the migrate method to suppress output
+    // Mock the migrate/make methods to suppress output
     const originalMigrate = Migrator.prototype.migrate;
     Migrator.prototype.migrate = mock.fn(Migrator.prototype.migrate, async function (target) {
         return originalMigrate.call(this, target, () => {});
+    });
+    const originalMake = Migrator.prototype.make;
+    Migrator.prototype.make = mock.fn(Migrator.prototype.make, async function (options) {
+        return originalMake.call(this, options, () => {});
     });
 
     describe('constructor', () => {
@@ -90,6 +94,16 @@ await describe('Migrator', () => {
             fs.rmSync(MAKE_OPTIONS.migrationsPath, { recursive: true, force: true });
             assert.doesNotThrow(() => new Migrator(MAKE_OPTIONS));
             assert.ok(fs.existsSync(MAKE_OPTIONS.migrationsPath));
+        });
+
+        it('should load a config file if provided', () => {
+            const configPath = path.join(__dirname, '.samrc');
+            const migrator = new Migrator({ configPath });
+            assert.strictEqual(migrator.dbPath, path.resolve(VALID_OPTIONS.dbPath));
+            assert.strictEqual(migrator.migrationsPath, path.resolve(VALID_OPTIONS.migrationsPath));
+            assert.strictEqual(migrator.migrationsTable, VALID_OPTIONS.migrationsTable);
+            assert.strictEqual(migrator.schemaPath, path.resolve(VALID_OPTIONS.schemaPath));
+            assert.strictEqual(migrator.configPath, configPath);
         });
     });
 
@@ -909,6 +923,35 @@ await describe('Migrator', () => {
             const db = await Database.connect(MAKE_OPTIONS.dbPath);
             await db.all('SELECT * FROM users');
             await db.close();
+        });
+    });
+
+    describe('status()', () => {
+        it('should return the current migration status', async () => {
+            const migrator = new Migrator(VALID_OPTIONS);
+            await migrator.migrate('zero');
+            const status = await migrator.status();
+            assert.strictEqual(status.current_id, 'zero');
+            assert.strictEqual(status.extra_migrations.length, 0);
+            assert.strictEqual(status.missing_migrations.length, 7);
+
+            await migrator.migrate('0003');
+            const status2 = await migrator.status();
+            assert.strictEqual(status2.current_id, '0003');
+            assert.strictEqual(status2.extra_migrations.length, 0);
+            assert.strictEqual(status2.missing_migrations.length, 3);
+
+            await migrator.migrate('0006');
+            const status3 = await migrator.status();
+            assert.strictEqual(status3.current_id, '0006');
+            assert.strictEqual(status3.extra_migrations.length, 0);
+            assert.strictEqual(status3.missing_migrations.length, 0);
+
+            const migrator2 = new Migrator(OTHER_VALID_OPTIONS);
+            const status4 = await migrator2.status();
+            assert.strictEqual(status4.current_id, '0006');
+            assert.strictEqual(status4.extra_migrations.length, 6);
+            assert.strictEqual(status4.missing_migrations.length, 2);
         });
     });
 });

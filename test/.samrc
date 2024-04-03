@@ -1,0 +1,13 @@
+{
+    "DB_PATH": "./test/test.db",
+    "SCHEMA_PATH": "./test/schemas/schema.sql",
+    "MIGRATIONS_PATH": "./test/valid_migrations",
+    "MIGRATIONS_TABLE": "migrations",
+    "CREATE_IF_NO_CHANGES": false,
+    "ON_RENAME": "PROMPT",
+    "ON_DESTRUCTIVE_CHANGE": "PROMPT",
+    "ON_CHANGED_INDEX": "PROCEED",
+    "ON_CHANGED_VIEW": "PROCEED",
+    "ON_CHANGED_TRIGGER": "PROCEED",
+    "CREATE_DB_IF_MISSING": false
+}

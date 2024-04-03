@@ -27,11 +27,13 @@ export class Migrator {
      * @throws an appropriate {@link ValidationError} if the options are invalid.
      */
     constructor(options?: MigrationOptions);
+    configPath: any;
     dbPath: any;
     migrationsPath: any;
     tempPath: any;
     schemaPath: any;
-    migrationTable: string;
+    migrationsTable: string;
+    createDBIfMissing: boolean;
     /**
      * Creates a new migration file that when applied will bring the latest migration file state to that of the current schema.
      * @param {MakeOptions} [keyargs={}] specifies how to handle renames/destructive changes and more.
@@ -40,7 +42,7 @@ export class Migrator {
      * @throws an appropriate {@link Error} if an unexpected error occurs, e.g., not being able to connect to the database, close the database, or remove temporary files.
      * @effects writes a new migration file to the migrations folder if no unexpected/validation errors occur and keyargs.createIfNoChanges is true or there are changes to be made
      */
-    make(keyargs?: MakeOptions): Promise<void>;
+    make(keyargs?: MakeOptions, log?: (s: any) => boolean): Promise<void>;
     /**
      * Migrates the database state to the given target. Automatically figures out if the migrations
      * in the migration folder have changed (e.g. changed git branch) and undoes and reapplies migrations as necessary.
@@ -100,13 +102,21 @@ export type MigrationOptions = {
      */
     migrationsPath?: string;
     /**
-     * Name of the table to store migration information in. Default is `process.env.SAM_MIGRATION_TABLE` if provided, otherwise `migrations`
+     * Name of the table to store migration information in. Default is `process.env.SAM_MIGRATIONS_TABLE` if provided, otherwise `migrations`
      */
-    migrationTable?: string;
+    migrationsTable?: string;
     /**
      * Path to the schema file. Default is `process.env.SAM_SCHEMA_PATH` if provided, otherwise `path.join(process.cwd(), 'schema.sql')`
      */
     schemaPath?: string;
+    /**
+     * Whether to create a new database file instead of throwing an error if it is missing. Default is true if `process.env.SAM_CREATE_DB_IF_MISSING === 'true'` and false otherwise
+     */
+    createDBIfMissing?: boolean;
+    /**
+     * Path to the configuration file. Default is `process.env.SAM_CONFIG_PATH` if provided, otherwise `path.join(process.cwd(), '.samrc')`. The config file is a json file where the object keys are the same as the environment variables minus the SAM_ prefix. The provided keys act as defaults and are overridden by the environment variables if they exist.
+     */
+    configPath?: string;
 };
 /**
  * The options for the migrator.make() method.
@@ -149,10 +159,6 @@ export type Status = {
      * The current migration name
      */
     current_name: string;
-    /**
-     * The options used to create the migrator
-     */
-    options: MigrationOptions;
     /**
      * All the pragmas of the database, includes non-persisted pragmas that need to be set on each new connection
      */

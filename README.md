@@ -38,18 +38,27 @@ $ npm install sqlite-auto-migrator
 
 ## Usage
 
-When dealing with synchronizing database state between production, local development and more, you have 2 things to keep track of: the schema file that contains the desired database state and the database schema state itself.
+When dealing with synchronizing database state between production, local development and more, you have two things to keep track of: the schema file that contains the desired database state and the database schema state itself.
 
 ### Configuration
 
-First specify the path to the schema file with the `SAM_SCHEMA_PATH` environment variable and the path to the database file with the `SAM_DB_PATH` environment variable. You can use [dotenv](https://www.npmjs.com/package/dotenv) for this or set them when running `node` or `sam`:
+First specify the path to the schema file with the `SAM_SCHEMA_PATH` environment variable and the path to the database file with `SAM_DB_PATH`. You can set them when running `node` or `sam`:
 
 ```console
 $ SAM_SCHEMA_PATH=./schema.sql SAM_DB_PATH=./data.db node your_script.js
 $ SAM_SCHEMA_PATH=./schema.sql SAM_DB_PATH=./data.db sam help
 ```
 
-sqlite-auto-migrator will keep track of the operations needed to change the database state to your various schema states through time. These are stored in the `migrations` table and `migrations` folder. You can specify these as `SAM_MIGRATION_TABLE` and `SAM_MIGRATION_PATH` environment variables respectively. You can also provided the config via a JavaScript object as seen in the [JavaScript Migration Management](#javascript-migration-management) section.
+or provide them without the 'SAM\_' prefix in a [.samrc configuration file](test/.samrc):
+
+```json
+{
+    "SCHEMA_PATH": "./schema.sql",
+    "DB_PATH": "./data.db"
+}
+```
+
+sqlite-auto-migrator will keep track of the operations needed to change the database state to your various schema states through time. These are stored in the `migrations` table and `migrations` folder. You can specify these as `SAM_MIGRATION_TABLE` and `SAM_MIGRATION_PATH` environment variables respectively. You can also provide the config via a JavaScript object as seen in the [JavaScript Migration Management](#javascript-migration-management) section.
 
 ### Automatically Make the Database Schema Match the Schema File
 
@@ -65,7 +74,7 @@ await migrator.migrate();
 
 You can add this to your CI/CD pipeline or on application startup to ensure that your database schema is always up to date with your schema file.
 
-You can leave out the `await migrator.make();` line if you only want to apply the migrations and not create new ones. This plays well with a workflow where you create migration files by running `sam make` from the commandline when you are ready to save your schema file changes to the database.
+You can leave out the `await migrator.make();` line if you only want to apply the migrations and not create new ones. This plays well with a workflow where you create migration files by running `sam make` from the commandline when you are ready to save your schema file changes to the database and then your code auto applies the changes.
 
 sqlite-auto-migrator will automatically figure out if the content of the migration folder has changed and unapply any removed migration files and unapply+reapply modified migration files. By keeping the migration files in version control, you can easily roll back to a previous database state by checking out an older commit.
 
@@ -84,10 +93,14 @@ const migrator = new Migrator(
     dbPath?: string;
     /** Path to the migrations folder. Default is `process.env.SAM_MIGRATION_PATH` if provided, otherwise `path.join(process.cwd(), 'migrations')` */
     migrationsPath?: string;
-    /** Name of the table to store migration information in. Default is `process.env.SAM_MIGRATION_TABLE` if provided, otherwise `migrations` */
-    migrationTable?: string;
+    /** Name of the table to store migration information in. Default is `process.env.SAM_MIGRATIONS_TABLE` if provided, otherwise `migrations` */
+    migrationsTable?: string;
     /** Path to the schema file. Default is `process.env.SAM_SCHEMA_PATH` if provided, otherwise `path.join(process.cwd(), 'schema.sql')` */
     schemaPath?: string;
+    /** Whether to create a new database file instead of throwing an error if it is missing. Default is true if `process.env.SAM_CREATE_DB_IF_MISSING === 'true'` and false otherwise */
+    createDBIfMissing?: boolean;
+    /** Path to the configuration file. Default is `process.env.SAM_CONFIG_PATH` if provided, otherwise `path.join(process.cwd(), '.samrc')`. The config file is a json file where the object keys are the same as the environment variables minus the SAM_ prefix. The provided keys act as defaults and are overridden by the environment variables if they exist */
+    configPath?: string;
   }
 );
 ```
@@ -111,7 +124,9 @@ await migrator.make(
     onChangedTrigger?: Migrator.PROMPT | Migrator.PROCEED | Migrator.SKIP | Migrator.REQUIRE_MANUAL_MIGRATION;
     /** Whether to create a new migration file even if no changes are needed. Default is true if `process.env.SAM_CREATE_IF_NO_CHANGES === 'true'` and false otherwise */
     createIfNoChanges?: boolean;
-  }
+  },
+  /** a function to log progress messages through. Default is `process.stdout.write` */
+  log?: Function
 );
 ```
 
@@ -141,24 +156,28 @@ const status = await migrator.status();
 ### Command Line Interface
 
 ```console
-$ sam status [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name>] [--schemaPath <path>]
+$ sam help
 ```
 
-Prints a message to the console showing the current migration, the migrations that have yet to be applied, and whether there have been changes made between the schema file and migration files. The options are the same as the `status` function and `Migrator constructor` in the JavaScript API.
+To see a list of available commands and options including all the 'SAM\_' environment variables you can set.
 
 ```console
-$ sam make [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name>] [--schemaPath <path>] [--onRename <action>] [--onDestructiveChange <action>] [--onChangedIndex <action>] [--onChangedView <action>] [--onChangedTrigger <action>] [--onlyCreateIfChanges]
+$ sam status [--no-output]
 ```
 
-Creates a new migration file in the migrations folder. The options are the same as the `make` function and `Migrator constructor` in the JavaScript API with the exception of `--onlyCreateIfChanges`. By default, the commandline `sam make` always creates a new migration file, even if no changes are needed. To only create a new migration file if changes are needed, use the `--onlyCreateIfChanges` flag.
-
-> Note: `--onlyCreateIfChanges` must be the last flag if provided.
+Prints a message to the console showing the current migration, the migrations that have yet to be applied, and whether there have been changes made between the schema file and migration files.
 
 ```console
-$ sam migrate [--dbPath <path>] [--migrationsPath <path>] [--migrationTable <name>] [--schemaPath <path>] [<target migration>]
+$ sam make [--no-output]
 ```
 
-Applies the unapplied migrations in the migrations folder up to the target migration. If no target migration is provided, all unapplied migrations are applied. Also unapplies any migrations that have been removed from the migrations folder. The options are the same as the `migrate` function and `Migrator constructor` in the JavaScript API. The target migration can be the migration id or one of the following special values: `zero`, `latest`. If no target migration is provided, the default is `latest`. If the target migration is `zero`, all migrations are unapplied.
+Creates a new migration file in the migrations folder that when applied with `sam migrate` will bring the database state to match the schema file.
+
+```console
+$ sam migrate [--no-output] [<target migration>]
+```
+
+Applies the unapplied migrations in the migrations folder up to the target migration. If no target migration is provided, all unapplied migrations are applied. Also unapplies any migrations that have been removed from the migrations folder. The target migration can be the migration id or one of the following special values: `zero`, `latest`. If no target migration is provided, the default is `latest`. If the target migration is `zero`, all migrations are unapplied.
 
 > Note: The target migration must be the last argument if provided.
 
