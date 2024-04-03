@@ -37,12 +37,13 @@ export class Migrator {
     /**
      * Creates a new migration file that when applied will bring the latest migration file state to that of the current schema.
      * @param {MakeOptions} [keyargs={}] specifies how to handle renames/destructive changes and more.
+     * @param {function} log a function to log messages through. Default is `process.stdout.write`
      * @throws an appropriate {@link ValidationError} if the options or prompted input is invalid.
      * @throws an appropriate {@link ManualMigrationRequired} if a manual migration is required.
      * @throws an appropriate {@link Error} if an unexpected error occurs, e.g., not being able to connect to the database, close the database, or remove temporary files.
      * @effects writes a new migration file to the migrations folder if no unexpected/validation errors occur and keyargs.createIfNoChanges is true or there are changes to be made
      */
-    make(keyargs?: MakeOptions, log?: (s: any) => boolean): Promise<void>;
+    make(keyargs?: MakeOptions, log?: Function): Promise<void>;
     /**
      * Migrates the database state to the given target. Automatically figures out if the migrations
      * in the migration folder have changed (e.g. changed git branch) and undoes and reapplies migrations as necessary.

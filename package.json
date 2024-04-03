@@ -1,7 +1,7 @@
 {
     "name": "sqlite-auto-migrator",
     "description": "Simple automated SQLite database migration tool which works well with CI/CD pipelines and VCS.",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "author": "Alexander Metzger <alexander.le@outlook.dk> (https://sandergi.github.io/)",
     "bin": {
         "sam": "./lib/cli.js"
@@ -58,7 +58,7 @@
         "build": "npm run types && npm run badges",
         "format": "(npx fixpack || true) && (npx eslint . --fix || true) && npx prettier . --write",
         "lint": "npx eslint-config-prettier $npm_package_config_main && npx eslint $npm_package_config_main && npx prettier . --check",
-        "prepack": "npm run format && npm run build && npm run lint && npm test",
+        "prepack": "npm run format && npm run build && npm run lint && npm test && npm run badges",
         "prepare": "husky",
         "test": "node --test --trace-warnings --experimental-test-coverage --test-reporter=spec --test-reporter=tap --test-reporter-destination=stdout --test-reporter-destination=tap.info ./test/test_*.mjs",
         "types": "npx -p typescript tsc $npm_package_config_main --declaration --allowJs --emitDeclarationOnly --outDir types"
