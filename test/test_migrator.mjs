@@ -535,6 +535,7 @@ await describe('Migrator', () => {
                 migrator2.make({
                     onRename: Migrator.PROMPT,
                     onDestructiveChange: Migrator.PROMPT,
+                    createOnManualMigration: true,
                 }),
                 { name: 'ManualMigrationRequired' },
             );
@@ -588,9 +589,15 @@ await describe('Migrator', () => {
                 ...MAKE_OPTIONS,
                 schemaPath: path.join(__dirname, 'schemas/one_table_rename.sql'),
             });
-            await assert.rejects(migrator2.make({ onRename: Migrator.REQUIRE_MANUAL_MIGRATION }), {
-                name: 'ManualMigrationRequired',
-            });
+            await assert.rejects(
+                migrator2.make({
+                    onRename: Migrator.REQUIRE_MANUAL_MIGRATION,
+                    createOnManualMigration: true,
+                }),
+                {
+                    name: 'ManualMigrationRequired',
+                },
+            );
 
             // migration file should still be created
             await migrator2.migrate();
@@ -866,7 +873,10 @@ await describe('Migrator', () => {
                 schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
             });
             await assert.rejects(
-                migrator2.make({ onDestructiveChange: Migrator.REQUIRE_MANUAL_MIGRATION }),
+                migrator2.make({
+                    onDestructiveChange: Migrator.REQUIRE_MANUAL_MIGRATION,
+                    createOnManualMigration: true,
+                }),
                 {
                     name: 'ManualMigrationRequired',
                 },
@@ -923,6 +933,77 @@ await describe('Migrator', () => {
             const db = await Database.connect(MAKE_OPTIONS.dbPath);
             await db.all('SELECT * FROM users');
             await db.close();
+        });
+
+        it('should require Manual Migration to add a NOT NULL column without default value', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(
+                    __dirname,
+                    'schemas/one_table_add_notnull_without_default.sql',
+                ),
+            });
+            await assert.rejects(migrator2.make(), { name: 'ManualMigrationRequired' });
+            await migrator2.migrate();
+        });
+
+        it('should work on a table with rows in it', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            await db.run('INSERT INTO users (id, name, age) VALUES (1, "test", 20)');
+            await db.run('INSERT INTO users (id, name, age) VALUES (2, "test", 22)');
+            await db.close();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_change_column_type.sql'),
+            });
+            await migrator2.make();
+            await migrator2.migrate();
+
+            const db2 = await Database.connect(MAKE_OPTIONS.dbPath);
+            await db2.all('SELECT * FROM users');
+            await db2.close();
+
+            await migrator2.migrate('zero');
+        });
+
+        it('should not create a manual migration if createOnManualMigration is false', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/empty.sql'),
+            });
+            await assert.rejects(
+                migrator2.make({
+                    onDestructiveChange: Migrator.REQUIRE_MANUAL_MIGRATION,
+                    createOnManualMigration: false,
+                }),
+                {
+                    name: 'ManualMigrationRequired',
+                },
+            );
+            const files = fs.readdirSync(MAKE_OPTIONS.migrationsPath);
+            assert.strictEqual(files.length, 1);
         });
     });
 

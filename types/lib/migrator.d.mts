@@ -147,6 +147,10 @@ export type MakeOptions = {
      * Whether to create a new migration file even if no changes are needed. Default is true if `process.env.SAM_CREATE_IF_NO_CHANGES === 'true'` and false otherwise
      */
     createIfNoChanges?: boolean;
+    /**
+     * Whether to create a new migration file if a manual migration is required. Default is true if `process.env.SAM_CREATE_ON_MANUAL_MIGRATION === 'true'` and false otherwise
+     */
+    createOnManualMigration?: boolean;
 };
 /**
  * The migration status of the database.
