@@ -34,6 +34,7 @@ export class Migrator {
     schemaPath: any;
     migrationsTable: string;
     createDBIfMissing: boolean;
+    onlyTrackAmbiguousState: boolean;
     /**
      * Creates a new migration file that when applied will bring the latest migration file state to that of the current schema.
      * @param {MakeOptions} [keyargs={}] specifies how to handle renames/destructive changes and more.
@@ -49,13 +50,14 @@ export class Migrator {
      * in the migration folder have changed (e.g. changed git branch) and undoes and reapplies migrations as necessary.
      * @param {string} target The migration to set the database state to, e.g., "0001" (a migration id), "zero" (undo all migrations) or "latest" (default)
      * @param {function} log a function to log messages through. Default is `process.stdout.write`
+     * @param {MakeOptions} [diffargs={}] specifies how to handle renames/destructive changes and more if onlyTrackAmbiguousState is true
      * @throws an appropriate {@link ValidationError} if the options or target is invalid.
      * @throws an appropriate {@link RolledBackTransaction} if the migrations failed causing the transaction to be rolled back.
      * @throws an appropriate {@link IntegrityError} if the integrity or foreign key checks fail after the migration.
      * @throws an appropriate {@link Error} if an unexpected error occurs, e.g., not being able to connect to the database, close the database, or remove temporary files.
      * @returns {Promise<void>} a promise that resolves when the migrations are complete or rejects if an error occurs
      */
-    migrate(target?: string, log?: Function): Promise<void>;
+    migrate(target?: string, diffargs?: MakeOptions, log?: Function): Promise<void>;
     /**
      * Gets the current migration state of the database.
      * @returns {Promise<Status>} the current migration state of the database as a {@link Status} object
@@ -114,6 +116,10 @@ export type MigrationOptions = {
      * Whether to create a new database file instead of throwing an error if it is missing. Default is true if `process.env.SAM_CREATE_DB_IF_MISSING === 'true'` and false otherwise
      */
     createDBIfMissing?: boolean;
+    /**
+     * True if only renames (not creates+deletes) should be tracked in migration files, false otherwise. Default is true if `process.env.SAM_ONLY_TRACK_AMBIGUOUS_STATE === 'true'` and false otherwise
+     */
+    onlyTrackAmbiguousState?: boolean;
     /**
      * Path to the configuration file. Default is `process.env.SAM_CONFIG_PATH` if provided, otherwise `path.join(process.cwd(), '.samrc')`. The config file is a json file where the object keys are the same as the environment variables minus the SAM_ prefix. The provided keys act as defaults and are overridden by the environment variables if they exist.
      */

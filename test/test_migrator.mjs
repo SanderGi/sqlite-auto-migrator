@@ -52,7 +52,7 @@ await describe('Migrator', () => {
     // Mock the migrate/make methods to suppress output
     const originalMigrate = Migrator.prototype.migrate;
     Migrator.prototype.migrate = mock.fn(Migrator.prototype.migrate, async function (target) {
-        return originalMigrate.call(this, target, () => {});
+        return originalMigrate.call(this, target, {}, () => {});
     });
     const originalMake = Migrator.prototype.make;
     Migrator.prototype.make = mock.fn(Migrator.prototype.make, async function (options) {
@@ -90,10 +90,10 @@ await describe('Migrator', () => {
             assert.throws(() => new Migrator({ ...VALID_OPTIONS, dbPath: '.' }));
         });
 
-        it('should create the migrations folder if it does not exist', () => {
+        it('should not create the migrations folder if it does not exist', () => {
             fs.rmSync(MAKE_OPTIONS.migrationsPath, { recursive: true, force: true });
             assert.doesNotThrow(() => new Migrator(MAKE_OPTIONS));
-            assert.ok(fs.existsSync(MAKE_OPTIONS.migrationsPath));
+            assert.ok(!fs.existsSync(MAKE_OPTIONS.migrationsPath));
         });
 
         it('should load a config file if provided', () => {
@@ -125,11 +125,11 @@ await describe('Migrator', () => {
             await db.close();
         });
 
-        it('should create the migrations table if it does not exist', async () => {
-            await migrator.migrate('zero');
+        it('should create the migrations table if it does not exist and schema changes are made', async () => {
+            await migrator.migrate('0000');
             const db = await Database.connect(VALID_OPTIONS.dbPath);
             const rows = await db.all('SELECT * FROM migrations');
-            assert.strictEqual(rows.length, 0);
+            assert.strictEqual(rows.length, 1);
             await db.close();
         });
 
@@ -351,8 +351,10 @@ await describe('Migrator', () => {
             await assert.rejects(migrator.migrate(), { name: 'RolledBackTransaction' });
 
             const db = await Database.connect(VALID_OPTIONS.dbPath);
-            const rows = await db.all('SELECT * FROM migrations');
-            assert.strictEqual(rows.length, 0);
+            const migrationTableExists = await db.all(
+                'SELECT * FROM sqlite_master WHERE type = "table" AND name = "migrations"',
+            );
+            assert.strictEqual(migrationTableExists.length, 0);
             assert.rejects(db.get('SELECT * FROM sample_table'));
             assert.rejects(db.get('SELECT * FROM users'));
             assert.rejects(db.get('SELECT * FROM foreignkeytousers'));
@@ -384,6 +386,15 @@ await describe('Migrator', () => {
 
             fs.rmSync(MAKE_OPTIONS.migrationsPath, { recursive: true, force: true });
             fs.mkdirSync(MAKE_OPTIONS.migrationsPath);
+        });
+
+        it('should create the migrations folder if it does not exist and schema changes are made', async () => {
+            fs.rmSync(MAKE_OPTIONS.migrationsPath, { recursive: true, force: true });
+
+            const migrator = new Migrator(MAKE_OPTIONS);
+            await migrator.make();
+
+            assert.ok(fs.existsSync(MAKE_OPTIONS.migrationsPath));
         });
 
         it('should be able to create a migration file for one table', async () => {
