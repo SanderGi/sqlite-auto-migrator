@@ -2,13 +2,13 @@
  * Promise-based wrapper around the callback-based node-sqlite3 bindings.
  */
 export class Database {
-    static OPEN_READONLY: any;
-    static OPEN_READWRITE: any;
-    static OPEN_CREATE: any;
-    static OPEN_FULLMUTEX: any;
-    static OPEN_URI: any;
-    static OPEN_SHAREDCACHE: any;
-    static OPEN_PRIVATECACHE: any;
+    static OPEN_READONLY: number;
+    static OPEN_READWRITE: number;
+    static OPEN_CREATE: number;
+    static OPEN_FULLMUTEX: number;
+    static OPEN_URI: number;
+    static OPEN_SHAREDCACHE: number;
+    static OPEN_PRIVATECACHE: number;
     /**
      * Connects to a database file.
      * @param {string} filename the path to the database file. Use ':memory:' for an in-memory database and '' for a temporary on-disk database.
@@ -194,3 +194,4 @@ export type RunResult = {
      */
     changes: number;
 };
+export type sqlite3 = typeof import("sqlite3");
