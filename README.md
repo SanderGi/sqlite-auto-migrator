@@ -404,11 +404,10 @@ $ npm run build
 
 ## Contributors
 
-The author of sqlite-auto-migrator is [Alexander Metzger](https://sandergi.github.io).
+1. [@SanderGi](https://sandergi.github.io) - Main maintainer and author
+2. [@buzzy](https://github.com/buzzy) - Bun compatibility and other bug reports, testing and feedback
 
 Functionality is inspired by [David Rothlis's migration script](https://david.rothlis.net/declarative-schema-migration-for-sqlite/) and made in consultance with the SQLite documentation, particularly the [alter table instructions](https://www.sqlite.org/lang_altertable.html), [schema table](https://www.sqlite.org/schematab.html), [quirks list](https://www.sqlite.org/quirks.html) and [language documentation](https://www.sqlite.org/lang.html).
-
-All contributors will be listed here.
 
 ## License
 
