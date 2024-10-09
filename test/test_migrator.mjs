@@ -19,6 +19,7 @@ const VALID_OPTIONS = {
     migrationsPath: path.join(__dirname, 'valid_migrations'),
     migrationsTable: 'migrations',
     schemaPath: path.join(__dirname, 'schemas/schema.sql'),
+    hideWarnings: true,
 };
 
 const OTHER_VALID_OPTIONS = {
@@ -34,6 +35,12 @@ const INVALID_OPTIONS = {
 const FOREIGN_KEY_VIOLATION_OPTIONS = {
     ...VALID_OPTIONS,
     migrationsPath: path.join(__dirname, 'foreign_key_violation_migration'),
+};
+
+const DECLARATIVE_DIFFING_OPTIONS = {
+    ...VALID_OPTIONS,
+    migrationsPath: path.join(__dirname, 'migrations'),
+    onlyTrackAmbiguousState: true,
 };
 
 const MAKE_OPTIONS = {
@@ -1044,6 +1051,192 @@ await describe('Migrator', () => {
             assert.strictEqual(status4.current_id, '0006');
             assert.strictEqual(status4.extra_migrations.length, 6);
             assert.strictEqual(status4.missing_migrations.length, 2);
+        });
+    });
+
+    describe('declarative diffing with onlyTrackAmbiguousState=true', () => {
+        beforeEach(() => {
+            fs.rmSync(DECLARATIVE_DIFFING_OPTIONS.dbPath, { force: true });
+            fs.rmSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath, { recursive: true, force: true });
+            fs.writeFileSync(DECLARATIVE_DIFFING_OPTIONS.dbPath, '');
+        });
+
+        it('should not create a migrations table/folder with an empty schema', async () => {
+            const migrator = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/empty.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+            const db = await Database.connect(DECLARATIVE_DIFFING_OPTIONS.dbPath);
+            const tables = await db.all('SELECT name FROM sqlite_master WHERE type = "table"');
+            assert.strictEqual(tables.length, 0);
+        });
+
+        it('should not create a migrations table/files with an empty schema even if the migrations folder already exists', async () => {
+            fs.mkdirSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath);
+
+            const migrator = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/empty.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const files = fs.readdirSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath);
+            assert.strictEqual(files.length, 0);
+            const db = await Database.connect(DECLARATIVE_DIFFING_OPTIONS.dbPath);
+            const tables = await db.all('SELECT name FROM sqlite_master WHERE type = "table"');
+            assert.strictEqual(tables.length, 0);
+        });
+
+        it('should not create migrations table/files when the database starts from the empty schema', async () => {
+            const migrator = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/main.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+            const db = await Database.connect(DECLARATIVE_DIFFING_OPTIONS.dbPath);
+            const tables = await db.all('SELECT name FROM sqlite_master WHERE type = "table"');
+            assert.strictEqual(tables.length, 1);
+            assert.strictEqual(tables[0].name, 'users');
+            const indexes = await db.all('PRAGMA index_list(users)');
+            assert.strictEqual(indexes[0].name, 'mail');
+        });
+
+        it('should work without make() call', async () => {
+            const migrator = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/main.sql'),
+            });
+            await migrator.migrate();
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+            const db = await Database.connect(DECLARATIVE_DIFFING_OPTIONS.dbPath);
+            const tables = await db.all('SELECT name FROM sqlite_master WHERE type = "table"');
+            assert.strictEqual(tables.length, 1);
+            assert.strictEqual(tables[0].name, 'users');
+            const indexes = await db.all('PRAGMA index_list(users)');
+            assert.strictEqual(indexes[0].name, 'mail');
+        });
+
+        it('should work with multiple databases', async () => {
+            const migrator = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/sessions.sql'),
+            });
+            await migrator.migrate('latest', {
+                onRename: Migrator.REQUIRE_MANUAL_MIGRATION,
+                onDestructiveChange: Migrator.REQUIRE_MANUAL_MIGRATION,
+                onChangedView: Migrator.REQUIRE_MANUAL_MIGRATION,
+                onChangedIndex: Migrator.PROCEED,
+                onChangedTrigger: Migrator.PROCEED,
+            });
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+
+            const dbPath2 = path.join(__dirname, 'other.db');
+            const migrator2 = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/main.sql'),
+                dbPath: dbPath2,
+                createDBIfMissing: true,
+            });
+            await migrator2.migrate('latest', {
+                onRename: Migrator.REQUIRE_MANUAL_MIGRATION,
+                onDestructiveChange: Migrator.REQUIRE_MANUAL_MIGRATION,
+                onChangedView: Migrator.REQUIRE_MANUAL_MIGRATION,
+                onChangedIndex: Migrator.PROCEED,
+                onChangedTrigger: Migrator.PROCEED,
+            });
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+
+            const db1 = await Database.connect(DECLARATIVE_DIFFING_OPTIONS.dbPath);
+            const rows1 = await db1.all('SELECT * FROM sessions');
+            assert.strictEqual(rows1.length, 0);
+            await db1.close();
+
+            const db2 = await Database.connect(dbPath2);
+            const rows2 = await db2.all('SELECT * FROM users');
+            assert.strictEqual(rows2.length, 0);
+            await db2.close();
+            fs.rmSync(dbPath2);
+        });
+
+        it('should require manual migration on table renames if make() is not called', async () => {
+            const migrator = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.migrate();
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+
+            const migrator2 = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_rename.sql'),
+            });
+            await assert.rejects(migrator2.migrate(), { name: 'RolledBackTransaction' });
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+        });
+
+        it('should require manual migration on column renames if make() is not called', async () => {
+            const migrator = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.migrate();
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+
+            const migrator2 = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_column_rename.sql'),
+            });
+            await assert.rejects(migrator2.migrate(), { name: 'RolledBackTransaction' });
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+        });
+
+        it('should allow renames with make()', async t => {
+            const migrator = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            assert.ok(!fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+
+            const migrator2 = new Migrator({
+                ...DECLARATIVE_DIFFING_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/one_table_rename.sql'),
+            });
+            t.mock.method(readline, 'createInterface', () => {
+                return {
+                    question: (_, callback) => {
+                        callback('y');
+                    },
+                    close: () => {},
+                };
+            }); // mock the prompt as a yes
+            await migrator2.make();
+
+            assert.ok(fs.existsSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath));
+
+            await migrator2.migrate();
+
+            const db = await Database.connect(DECLARATIVE_DIFFING_OPTIONS.dbPath);
+            const rows = await db.all('SELECT id, name, age FROM users_renamed');
+            assert.strictEqual(rows.length, 0);
+            await db.close();
         });
     });
 });

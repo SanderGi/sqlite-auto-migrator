@@ -35,9 +35,10 @@ export class Migrator {
     migrationsTable: string;
     createDBIfMissing: boolean;
     onlyTrackAmbiguousState: boolean;
+    hideWarnings: boolean;
     /**
      * Creates a new migration file that when applied will bring the latest migration file state to that of the current schema.
-     * @param {MakeOptions} [keyargs={}] specifies how to handle renames/destructive changes and more.
+     * @param {MakeOptions} [keyargs={}] specifies how to handle renames/destructive changes and more {@link MakeOptions}
      * @param {function} log a function to log messages through. Default is `process.stdout.write`
      * @throws an appropriate {@link ValidationError} if the options or prompted input is invalid.
      * @throws an appropriate {@link ManualMigrationRequired} if a manual migration is required.
@@ -48,16 +49,16 @@ export class Migrator {
     /**
      * Migrates the database state to the given target. Automatically figures out if the migrations
      * in the migration folder have changed (e.g. changed git branch) and undoes and reapplies migrations as necessary.
-     * @param {string} target The migration to set the database state to, e.g., "0001" (a migration id), "zero" (undo all migrations) or "latest" (default)
+     * @param {string} target the migration to set the database state to, e.g., "0001" (a migration id), "zero" (undo all migrations) or "latest" (default)
+     * @param {MigrateUntrackedStateOptions} [diffargs={}] specifies how to handle renames/destructive changes and more if onlyTrackAmbiguousState is true {@link MigrateUntrackedStateOptions}
      * @param {function} log a function to log messages through. Default is `process.stdout.write`
-     * @param {MakeOptions} [diffargs={}] specifies how to handle renames/destructive changes and more if onlyTrackAmbiguousState is true
      * @throws an appropriate {@link ValidationError} if the options or target is invalid.
      * @throws an appropriate {@link RolledBackTransaction} if the migrations failed causing the transaction to be rolled back.
      * @throws an appropriate {@link IntegrityError} if the integrity or foreign key checks fail after the migration.
      * @throws an appropriate {@link Error} if an unexpected error occurs, e.g., not being able to connect to the database, close the database, or remove temporary files.
      * @returns {Promise<void>} a promise that resolves when the migrations are complete or rejects if an error occurs
      */
-    migrate(target?: string, diffargs?: MakeOptions, log?: Function): Promise<void>;
+    migrate(target?: string, diffargs?: MigrateUntrackedStateOptions, log?: Function): Promise<void>;
     /**
      * Gets the current migration state of the database.
      * @returns {Promise<Status>} the current migration state of the database as a {@link Status} object
@@ -121,6 +122,10 @@ export type MigrationOptions = {
      */
     onlyTrackAmbiguousState?: boolean;
     /**
+     * True if warnings should be hidden, false otherwise. Default is true if `process.env.SAM_HIDE_WARNINGS === 'true'` and false otherwise
+     */
+    hideWarnings?: boolean;
+    /**
      * Path to the configuration file. Default is `process.env.SAM_CONFIG_PATH` if provided, otherwise `path.join(process.cwd(), '.samrc')`. The config file is a json file where the object keys are the same as the environment variables minus the SAM_ prefix. The provided keys act as defaults and are overridden by the environment variables if they exist.
      */
     configPath?: string;
@@ -157,6 +162,31 @@ export type MakeOptions = {
      * Whether to create a new migration file if a manual migration is required. Default is true if `process.env.SAM_CREATE_ON_MANUAL_MIGRATION === 'true'` and false otherwise
      */
     createOnManualMigration?: boolean;
+};
+/**
+ * The options for the migrator.migrate() method when onlyTrackAmbiguousState is true.
+ */
+export type MigrateUntrackedStateOptions = {
+    /**
+     * How to handle autodetected column/table renames. Default is `Migrator.REQUIRE_MANUAL_MIGRATION`
+     */
+    onRename?: Action;
+    /**
+     * How to handle irreversible changes like dropping tables/columns. Default is `Migrator.REQUIRE_MANUAL_MIGRATION`
+     */
+    onDestructiveChange?: Action;
+    /**
+     * How to handle dropped/changed views. Default is `Migrator.PROCEED`
+     */
+    onChangedView?: Action;
+    /**
+     * How to handle dropped/changed indices. Default is `Migrator.PROCEED`
+     */
+    onChangedIndex?: Action;
+    /**
+     * How to handle dropped/changed triggers. Default is `Migrator.PROCEED`
+     */
+    onChangedTrigger?: Action;
 };
 /**
  * The migration status of the database.

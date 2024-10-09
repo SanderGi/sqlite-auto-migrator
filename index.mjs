@@ -6,6 +6,7 @@
 
 /** @typedef {import('./lib/migrator.mjs').MigrationOptions} MigrationOptions */
 /** @typedef {import('./lib/migrator.mjs').MakeOptions} MakeOptions */
+/** @typedef {import('./lib/migrator.mjs').MigrateUntrackedStateOptions} MigrateUntrackedStateOptions */
 /** @typedef {import('./lib/migrator.mjs').Action} Action */
 /** @typedef {import('./lib/migrator.mjs').Status} Status */
 /**

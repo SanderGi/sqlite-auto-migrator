@@ -22,3 +22,16 @@ export class RolledBackTransaction extends Error {
 export class IntegrityError extends Error {
     constructor(message: any, ...params: any[]);
 }
+/**
+ * Returned by the up() method of a migration to indicate that the migration is already applied.
+ */
+export class SchemaSnapshot {
+    /**
+     * @param {string[]} schema list of SQL create statements
+     * @param {import('./migrator.mjs').SchemaSnapshot} actions specifies how to handle renames, destructive changes, etc.
+     */
+    constructor(schema: string[], actions: any);
+    name: string;
+    schema: string[];
+    actions: any;
+}

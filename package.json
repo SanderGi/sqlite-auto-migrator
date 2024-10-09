@@ -61,7 +61,7 @@
         "lint": "npx eslint-config-prettier $npm_package_config_main && npx eslint $npm_package_config_main && npx prettier . --check",
         "prepack": "npm run format && npm run build && npm run lint && npm test && npm run badges",
         "prepare": "husky",
-        "test": "node --test --trace-warnings --experimental-test-coverage --test-reporter=spec --test-reporter=tap --test-reporter-destination=stdout --test-reporter-destination=tap.info ./test/test_*.mjs",
+        "test": "node --test --trace-warnings --test-concurrency 1 --experimental-test-coverage --test-reporter=spec --test-reporter=tap --test-reporter-destination=stdout --test-reporter-destination=tap.info ./test/test_*.mjs",
         "types": "npx -p typescript tsc $npm_package_config_main --declaration --allowJs --emitDeclarationOnly --outDir types"
     },
     "types": "./types/index.d.mts"

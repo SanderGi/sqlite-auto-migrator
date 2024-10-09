@@ -36,6 +36,12 @@ Installation is done using the
 $ npm install sqlite-auto-migrator
 ```
 
+The library is also compatible with [Bun](https://bun.sh/), will use Bun's built-in SQLite library if available, and supports embedded files via `bun build --compile`:
+
+```console
+$ bun add sqlite-auto-migrator
+```
+
 ## Usage
 
 When dealing with synchronizing database state between production, local development and more, you have two things to keep track of: the schema file that contains the desired database state and the database schema state itself.
@@ -99,6 +105,10 @@ const migrator = new Migrator(
     schemaPath?: string;
     /** Whether to create a new database file instead of throwing an error if it is missing. Default is true if `process.env.SAM_CREATE_DB_IF_MISSING === 'true'` and false otherwise */
     createDBIfMissing?: boolean;
+    /** True if only renames (not creates+deletes) should be tracked in migration files, false otherwise. Default is true if `process.env.SAM_ONLY_TRACK_AMBIGUOUS_STATE === 'true'` and false otherwise */
+    onlyTrackAmbiguousState?: boolean;
+    /** True if warnings should be hidden, false otherwise. Default is true if `process.env.SAM_HIDE_WARNINGS === 'true'` and false otherwise */
+    hideWarnings?: boolean;
     /** Path to the configuration file. Default is `process.env.SAM_CONFIG_PATH` if provided, otherwise `path.join(process.cwd(), '.samrc')`. The config file is a json file where the object keys are the same as the environment variables minus the SAM_ prefix. The provided keys act as defaults and are overridden by the environment variables if they exist */
     configPath?: string;
   }
@@ -136,8 +146,10 @@ Finally, apply the migrations:
 
 ```js
 await migrator.migrate(
-  /** The migration to set the database state to, e.g. "0001", "zero" or "latest" (default) */
+  /** the migration to set the database state to, e.g. "0001", "zero" or "latest" (default) */
   target?: string,
+  /** specifies how to handle renames/destructive changes and more if onlyTrackAmbiguousState is true */
+  diffargs?: MigrateUntrackedStateOptions
   /** a function to log progress messages through. Default is `process.stdout.write` */
   log?: Function
 );
@@ -185,9 +197,43 @@ Applies the unapplied migrations in the migrations folder up to the target migra
 
 Each migration file represents a database state. In most cases, you will automatically create the migration files using the `make` function. However, you can also create/tweak them manually. They are written in JavaScript to allow flexibility in the sort of operations they perform. Checkout this [sample migration](test/valid_migrations/0000_sample_migration.mjs). All a migration file is, is a script that exports an `up` and `down` function and a `PRAGMAS` object. The `up` function is run in a transaction with deferred foreign key constraints and takes care of bringing the database from the state of the previous migration file to that of this migration file. The `down` function undoes the changes made by the `up` function. The `PRAGMAS` object is used to specify the pragmas associated with this database state. The `PRAGMAS` object is optional and can be empty if no pragmas need to be set. The naming convention for migration files is `id_name.mjs` where `id` is a zero-padded number and `name` can be any descriptive name. The `id` is used to order the migrations and the `name` is largely ignored and only used for display purposes so you are free to change it.
 
+### Declarative Migrations without Migration Files
+
+Migration files are [necessary to clarify ambiguities](https://github.com/SanderGi/sqlite-auto-migrator/issues/3) and allow fine-grained control over the database schema state (revert to past versions, checkout different versions via VCS, and more). However, if you only need creation/deletion operations (no renames), the library supports declarative migrations without the migration folder/table. Enable these with the `SAM_ONLY_TRACK_AMBIGUOUS_STATE=true` environment variable or the `onlyTrackAmbiguousState` option:
+
+```js
+const migrator = new Migrator({
+    onlyTrackAmbiguousState: true,
+});
+await migrator.migrate();
+```
+
+With declarative migrations, the library will apply create statements to make the database schema match the schema file and throw `ManualMigrationRequired` errors for any required deletes. You can allow deletes with the `onDestructiveChange` option:
+
+```js
+const migrator = new Migrator({
+    onlyTrackAmbiguousState: true,
+});
+await migrator.migrate('latest', {
+    onDestructiveChange: Migrator.PROCEED,
+});
+```
+
+> You have access to the same options as `Migrator.make` here, however `Migrator.PROMPT` will act like `Migrator.REQUIRE_MANUAL_MIGRATION` to avoid databases from diverging due to differing user inputs.
+
+It is not recommended to use `onRename=Migrator.PROCEED` with declarative migrations as it can cause databases to diverge. To handle renames, you should instead add a `migrator.make()` call to track the rename with a migration file. In this mode, the make call will only create migration folder/table/files if a rename is made, otherwise it will do nothing.
+
+```js
+const migrator = new Migrator({
+    onlyTrackAmbiguousState: true,
+});
+await migrator.make();
+await migrator.migrate();
+```
+
 ### Asynchronous Database Wrapper
 
-The migration functions `up` and `down` get access to a `Database` instance which is a promise based wrapper around the callback based [sqlite3](https://www.npmjs.com/package/sqlite3) library. You can also import the `Database` class and instantiate it in your own scripts:
+The migration functions `up` and `down` get access to a `Database` instance which is a promise based wrapper around the callback based [sqlite3](https://www.npmjs.com/package/sqlite3) library (or the synchronous `bun:sqlite` when run via bun). You can also import the `Database` class and instantiate it in your own scripts:
 
 ```js
 import { Database } from 'sqlite-auto-migrator';
@@ -403,6 +449,8 @@ $ npm run build
 ```
 
 ## Contributors
+
+All contributions will be listed here:
 
 1. [@SanderGi](https://sandergi.github.io) - Main maintainer and author
 2. [@buzzy](https://github.com/buzzy) - Bun compatibility and other bug reports, testing and feedback
