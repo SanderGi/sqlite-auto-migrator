@@ -23,7 +23,7 @@ export class IntegrityError extends Error {
     constructor(message: any, ...params: any[]);
 }
 /**
- * Returned by the up() method of a migration to indicate that the migration is already applied.
+ * Returned by the up() method of a migration to indicate that to apply the migration, a declarative diffing should be performed.
  */
 export class SchemaSnapshot {
     /**
