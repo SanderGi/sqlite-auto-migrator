@@ -4,6 +4,8 @@
 [![FileCount](./.badges/file-count.svg)](./.badges/file-count.svg)
 [![Tests](./.badges/tests.svg)](./.badges/tests.svg)
 [![Coverage](./.badges/coverage.svg)](./.badges/coverage.svg)
+[![NPM Installs](https://img.shields.io/npm/dy/sqlite-auto-migrator?label=Installs)](https://www.npmjs.com/package/sqlite-auto-migrator)
+[![NPM Version](https://img.shields.io/npm/v/sqlite-auto-migrator)](https://www.npmjs.com/package/sqlite-auto-migrator)
 
 Simple automated SQLite database migration tool which works well with CI/CD pipelines and VCS.
 
