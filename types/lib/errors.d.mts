@@ -28,10 +28,10 @@ export class IntegrityError extends Error {
 export class SchemaSnapshot {
     /**
      * @param {string[]} schema list of SQL create statements
-     * @param {import('./migrator.mjs').SchemaSnapshot} actions specifies how to handle renames, destructive changes, etc.
+     * @param {import('./migrator.mjs').MakeOptions} actions specifies how to handle renames, destructive changes, etc.
      */
-    constructor(schema: string[], actions: any);
+    constructor(schema: string[], actions: import('./migrator.mjs').MakeOptions);
     name: string;
     schema: string[];
-    actions: any;
+    actions: import("./migrator.mjs").MakeOptions;
 }

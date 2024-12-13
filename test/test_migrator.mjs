@@ -837,7 +837,7 @@ await describe('Migrator', () => {
             await db.close();
         });
 
-        it('should not treat formatting changes as schema changes', async () => {
+        it('should treat case changes as renames when ignoreNameCase is not set to true', async () => {
             const migrator = new Migrator({
                 ...MAKE_OPTIONS,
                 schemaPath: path.join(__dirname, 'schemas/schema5_add_virtual_table.sql'),
@@ -847,6 +847,63 @@ await describe('Migrator', () => {
 
             const migrator2 = new Migrator({
                 ...MAKE_OPTIONS,
+                schemaPath: path.join(__dirname, 'schemas/schema6.5_name_case_changes.sql'),
+            });
+            await migrator2.make({
+                onRename: Migrator.PROCEED,
+                onDestructiveChange: Migrator.PROCEED,
+            });
+            const migrationFiles = fs.readdirSync(MAKE_OPTIONS.migrationsPath);
+            assert.strictEqual(migrationFiles.length, 2);
+            await migrator2.migrate();
+
+            await migrator2.make({ createIfNoChanges: true });
+            await assert.rejects(migrator2.migrate());
+
+            const db = await Database.connect(MAKE_OPTIONS.dbPath);
+            const rows = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows.length, 0);
+            await db.run('INSERT INTO users (id, name, age) VALUES (1, "test", 20)');
+            const rows2 = await db.all('SELECT * FROM users_view');
+            assert.strictEqual(rows2.length, 2);
+            assert.strictEqual(rows2[0].id, 1);
+            assert.strictEqual(rows2[0].name, 'test');
+            const indexes = await db.all('PRAGMA index_list(users)');
+            assert.strictEqual(indexes.length, 1);
+            assert.strictEqual(indexes[0].name, 'users_Name_index');
+            await db.run('INSERT INTO users (id, name, age) VALUES (3, "test", 20)');
+            const rows3 = await db.all('SELECT * FROM users ORDER BY id ASC');
+            assert.strictEqual(rows3.length, 4);
+            assert.strictEqual(rows3[3].name, 'trigger');
+            const tables = await db.all(
+                'SELECT name FROM sqlite_master WHERE type = "table" AND name LIKE "users_fts%"',
+            );
+            assert.strictEqual(tables.length, 6);
+            assert.strictEqual(tables[0].name, 'uSErs_fts_data');
+            const views = await db.all('SELECT name FROM sqlite_master WHERE type = "view"');
+            assert.strictEqual(views.length, 1);
+            assert.strictEqual(views[0].name, 'users_View');
+            const all_tables = await db.all(
+                'SELECT name, sql FROM sqlite_master WHERE type = "table"',
+            );
+            assert(all_tables.some(row => row.name === 'useRs'));
+            const foreignkeytousers = await db.all('PRAGMA table_info(foreignkeytousers)');
+            assert(foreignkeytousers.some(row => row.name === 'uSer_id'));
+            await db.close();
+        });
+
+        it('should not treat formatting changes as schema changes', async () => {
+            const migrator = new Migrator({
+                ...MAKE_OPTIONS,
+                ignoreNameCase: true,
+                schemaPath: path.join(__dirname, 'schemas/schema5_add_virtual_table.sql'),
+            });
+            await migrator.make();
+            await migrator.migrate();
+
+            const migrator2 = new Migrator({
+                ...MAKE_OPTIONS,
+                ignoreNameCase: true,
                 schemaPath: path.join(__dirname, 'schemas/schema6_obfuscated.sql'),
             });
             await migrator2.make();

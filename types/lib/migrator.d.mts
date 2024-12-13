@@ -35,6 +35,7 @@ export class Migrator {
     migrationsTable: string;
     createDBIfMissing: boolean;
     onlyTrackAmbiguousState: boolean;
+    ignoreNameCase: boolean;
     hideWarnings: boolean;
     /**
      * Creates a new migration file that when applied will bring the latest migration file state to that of the current schema.
@@ -125,6 +126,10 @@ export type MigrationOptions = {
      * True if warnings should be hidden, false otherwise. Default is true if `process.env.SAM_HIDE_WARNINGS === 'true'` and false otherwise
      */
     hideWarnings?: boolean;
+    /**
+     * True if table, column, index, virtual table, trigger, and view names should be case insensitive, false otherwise. Default is true if `process.env.SAM_IGNORE_NAME_CASE === 'true'` and false otherwise
+     */
+    ignoreNameCase?: boolean;
     /**
      * Path to the configuration file. Default is `process.env.SAM_CONFIG_PATH` if provided, otherwise `path.join(process.cwd(), '.samrc')`. The config file is a json file where the object keys are the same as the environment variables minus the SAM_ prefix. The provided keys act as defaults and are overridden by the environment variables if they exist.
      */

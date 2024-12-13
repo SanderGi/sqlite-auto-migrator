@@ -22,9 +22,10 @@ export function getCreateSQLBody(sql: string): string;
  *
  * @param {string} tableName name of the table to get column info for
  * @param {Database} db the database connection to get column info from
+ * @param {boolean} [ignoreCase=false] true if table and column names should be lowercased, false otherwise
  * @returns {Promise<Map<string, ColumnInfo>>} a map of column names to their info
  */
-export function getColumnInfo(tableName: string, db: Database): Promise<Map<string, ColumnInfo>>;
+export function getColumnInfo(tableName: string, db: Database, ignoreCase?: boolean): Promise<Map<string, ColumnInfo>>;
 /**
  * Get the normalized `sqlite_master.sql` column used to create a table.
  * @param {Database} db the database connection to get the table from
@@ -35,33 +36,38 @@ export function getTableSQL(db: Database, tableName: string): Promise<string>;
 /**
  * Get a map of table names to their normalized `sqlite_master.sql` column used to create them.
  * @param {Database} db the database connection to get tables from
+ * @param {boolean} [ignoreCase=false] true if table names should be lowercased, false otherwise
  * @returns {Promise<Map<string, string>>} a map of table names to their normalized `sqlite_master.sql` column used to create them
  */
-export function getTables(db: Database): Promise<Map<string, string>>;
+export function getTables(db: Database, ignoreCase?: boolean): Promise<Map<string, string>>;
 /**
  * Get a map of view names to their normalized `sqlite_master.sql` column used to create them.
  * @param {Database} db the database connection to get views from
+ * @param {boolean} [ignoreCase=false] true if view names should be lowercased, false otherwise
  * @returns {Promise<Map<string, string>>} a map of view names to their normalized `sqlite_master.sql` column used to create them
  */
-export function getViews(db: Database): Promise<Map<string, string>>;
+export function getViews(db: Database, ignoreCase?: boolean): Promise<Map<string, string>>;
 /**
  * Get a map of trigger names to their normalized `sqlite_master.sql` column used to create them.
  * @param {Database} db the database connection to get triggers from
+ * @param {boolean} [ignoreCase=false] true if trigger names should be lowercased, false otherwise
  * @returns {Promise<Map<string, string>>} a map of trigger names to their normalized `sqlite_master.sql` column used to create them
  */
-export function getTriggers(db: Database): Promise<Map<string, string>>;
+export function getTriggers(db: Database, ignoreCase?: boolean): Promise<Map<string, string>>;
 /**
  * Get a map of index names to their normalized `sqlite_master.sql` column used to create them.
  * @param {Database} db the database connection to get indices from
+ * @param {boolean} [ignoreCase=false] true if index names should be lowercased, false otherwise
  * @returns {Promise<Map<string, string>>} a map of index names to their normalized `sqlite_master.sql` column used to create them
  */
-export function getIndices(db: Database): Promise<Map<string, string>>;
+export function getIndices(db: Database, ignoreCase?: boolean): Promise<Map<string, string>>;
 /**
  * Get a map of virtual table names to their normalized `sqlite_master.sql` column used to create them.
  * @param {Database} db the database connection to get virtual tables from
+ * @param {boolean} [ignoreCase=false] true if virtual table names should be lowercased, false otherwise
  * @returns {Promise<Map<string, string>>} a map of virtual table names to their normalized `sqlite_master.sql` column used to create them
  */
-export function getVirtualTables(db: Database): Promise<Map<string, string>>;
+export function getVirtualTables(db: Database, ignoreCase?: boolean): Promise<Map<string, string>>;
 export type ColumnInfo = {
     type: string;
     notnull: number;
