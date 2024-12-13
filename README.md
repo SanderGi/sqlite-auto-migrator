@@ -109,6 +109,8 @@ const migrator = new Migrator(
     createDBIfMissing?: boolean;
     /** True if only renames (not creates+deletes) should be tracked in migration files, false otherwise. Default is true if `process.env.SAM_ONLY_TRACK_AMBIGUOUS_STATE === 'true'` and false otherwise */
     onlyTrackAmbiguousState?: boolean;
+    /** True if table, column, index, virtual table, trigger, and view names should be case insensitive, false otherwise. Default is true if `process.env.SAM_IGNORE_NAME_CASE === 'true'` and false otherwise */
+    ignoreNameCase?: boolean;
     /** True if warnings should be hidden, false otherwise. Default is true if `process.env.SAM_HIDE_WARNINGS === 'true'` and false otherwise */
     hideWarnings?: boolean;
     /** Path to the configuration file. Default is `process.env.SAM_CONFIG_PATH` if provided, otherwise `path.join(process.cwd(), '.samrc')`. The config file is a json file where the object keys are the same as the environment variables minus the SAM_ prefix. The provided keys act as defaults and are overridden by the environment variables if they exist */
