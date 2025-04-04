@@ -4,10 +4,11 @@
 [![FileCount](./.badges/file-count.svg)](./.badges/file-count.svg)
 [![Tests](./.badges/tests.svg)](./.badges/tests.svg)
 [![Coverage](./.badges/coverage.svg)](./.badges/coverage.svg)
+[![maintenance-status](https://img.shields.io/badge/maintenance-passively--maintained-yellowgreen.svg)](https://gist.github.com/taiki-e/ad73eaea17e2e0372efb76ef6b38f17b)
 [![NPM Installs](https://img.shields.io/npm/dy/sqlite-auto-migrator?label=Installs)](https://www.npmjs.com/package/sqlite-auto-migrator)
 [![NPM Version](https://img.shields.io/npm/v/sqlite-auto-migrator)](https://www.npmjs.com/package/sqlite-auto-migrator)
 
-Simple automated SQLite database migration tool which works well with CI/CD pipelines and VCS.
+Simple automated SQLite database migration library which works well with CI/CD pipelines and VCS.
 
 Flexible JavaScript-based migration files that can be auto-generated and applied directly via JavaScript or TypeScript:
 
