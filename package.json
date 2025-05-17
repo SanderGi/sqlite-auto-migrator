@@ -23,6 +23,7 @@
         "husky": "^9.0.11",
         "lint-staged": "^15.2.0",
         "prettier": "3.1.1",
+        "sqlite-auto-migrator": ".",
         "typescript": "^5.4.4"
     },
     "engines": {
@@ -45,7 +46,7 @@
     "license": "MIT",
     "lint-staged": {
         "*.js,*.mjs,*.cjs": "npx eslint --fix",
-        "*": "npx prettier --write --ignore-unknown",
+        "*": "npx prettier --write --ignore-unknown *",
         "package.json": "npx fixpack"
     },
     "main": "index.mjs",

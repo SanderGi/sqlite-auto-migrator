@@ -1112,9 +1112,18 @@ await describe('Migrator', () => {
     });
 
     describe('declarative diffing with onlyTrackAmbiguousState=true', () => {
-        beforeEach(() => {
-            fs.rmSync(DECLARATIVE_DIFFING_OPTIONS.dbPath, { force: true });
-            fs.rmSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath, { recursive: true, force: true });
+        beforeEach(async () => {
+            if (process.platform == 'win32') {
+                const db = await Database.connect(DECLARATIVE_DIFFING_OPTIONS.dbPath);
+                await db.exec(CLEAR_DB);
+                await db.close();
+            } else {
+                fs.rmSync(DECLARATIVE_DIFFING_OPTIONS.dbPath, { force: true });
+            }
+            fs.rmSync(DECLARATIVE_DIFFING_OPTIONS.migrationsPath, {
+                recursive: true,
+                force: true,
+            });
             fs.writeFileSync(DECLARATIVE_DIFFING_OPTIONS.dbPath, '');
         });
 
